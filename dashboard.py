@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import ipaddress
 import json
 import math
 import os
@@ -16,9 +17,13 @@ from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 import psutil
+
+from github_auth import GitHubDeviceAuth
 
 
 ROOT = Path(__file__).resolve().parent
@@ -831,10 +836,170 @@ class PowerHistory:
         }
 
 
+def parse_copilot_usage(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("GitHub returned an invalid Copilot response")
+    snapshots = payload.get("quota_snapshots")
+    quota = snapshots.get("premium_interactions") if isinstance(snapshots, dict) else None
+    if not isinstance(quota, dict):
+        raise ValueError("GitHub did not return a Copilot premium quota for this account")
+
+    def numeric(field: str) -> float | None:
+        value = quota.get(field)
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+            raise ValueError(f"GitHub returned an invalid {field}")
+        try:
+            number = float(value)
+        except ValueError:
+            raise ValueError(f"GitHub returned an invalid {field}") from None
+        if not math.isfinite(number) or number < 0:
+            raise ValueError(f"GitHub returned an invalid {field}")
+        return number
+
+    unlimited = quota.get("unlimited")
+    if not isinstance(unlimited, bool):
+        raise ValueError("GitHub did not specify whether the Copilot quota is unlimited")
+    token_billing = payload.get("token_based_billing", False)
+    if not isinstance(token_billing, bool):
+        raise ValueError("GitHub did not specify the Copilot billing unit")
+    remaining_percent = numeric("percent_remaining")
+    total = numeric("entitlement")
+    remaining = numeric("quota_remaining")
+    used_percent = None
+    used = None
+    if unlimited:
+        if quota.get("has_quota") is not False:
+            used = numeric("credits_used")
+        total = None
+    elif total == 0:
+        raise ValueError("This account has no allocated Copilot premium allowance")
+    else:
+        if remaining_percent is None or remaining_percent > 100:
+            raise ValueError("GitHub did not return a valid percentage remaining")
+        used_percent = 100 - remaining_percent
+        if total is not None:
+            if remaining is not None and remaining > total:
+                raise ValueError("GitHub returned a remaining quota greater than its allowance")
+            used = total - remaining if remaining is not None else total * used_percent / 100
+    return {
+        "plan": payload.get("copilot_plan"),
+        "unit": "AI credits" if token_billing else "premium requests",
+        "used_percent": used_percent,
+        "used": used,
+        "total": total,
+        "unlimited": unlimited,
+        "reset_at": numeric("quota_reset_at"),
+        "reset_date": payload.get("quota_reset_date_utc") or payload.get("quota_reset_date"),
+    }
+
+
+def read_copilot_usage() -> dict[str, Any]:
+    token = next(
+        (os.environ[name].strip() for name in ("COPILOT_TOKEN", "GH_TOKEN", "GITHUB_TOKEN")
+         if os.environ.get(name, "").strip()),
+        None,
+    )
+    if token is None:
+        gh = shutil.which("gh")
+        if not gh:
+            raise ValueError("Use Sign in with GitHub in this box, or set COPILOT_TOKEN (optional CLI: gh auth login)")
+        result = subprocess.run(
+            [gh, "auth", "token", "--hostname", "github.com"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            raise ValueError("GitHub CLI is not signed in to github.com; run gh auth login")
+        token = result.stdout.strip()
+    return fetch_copilot_usage(token)
+
+
+def fetch_copilot_usage(token: str) -> dict[str, Any]:
+    if any(not 33 <= ord(character) <= 126 for character in token):
+        raise ValueError("Configured GitHub token contains invalid characters")
+    request = Request(
+        "https://api.github.com/copilot_internal/user",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+            "User-Agent": "Telemetry",
+        },
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            return parse_copilot_usage(json.load(response))
+    except HTTPError as error:
+        status = error.code
+        retry_after = error.headers.get("Retry-After")
+        error.close()
+        message = {
+            401: "GitHub authentication expired or is invalid; sign in again",
+            403: "GitHub denied Copilot quota access; check token permissions or rate limits",
+            404: "Copilot usage is unavailable for this account or token",
+            429: "GitHub rate limited Copilot usage requests",
+        }.get(status, f"GitHub Copilot usage request failed (HTTP {status})")
+        if retry_after:
+            message += f"; Retry-After: {retry_after}"
+        raise ValueError(message) from None
+    except (URLError, OSError) as error:
+        # Do not include request headers or credential-provider output in errors.
+        raise ValueError(f"Cannot reach GitHub Copilot usage ({type(error).__name__})") from None
+    except (json.JSONDecodeError, UnicodeError):
+        raise ValueError("GitHub returned an unreadable Copilot usage response") from None
+
+
+class CopilotUsage:
+    MIN_INTERVAL = 60
+
+    def __init__(self) -> None:
+        self.auth = GitHubDeviceAuth()
+        self._auth_revision = 0
+        self._lock = threading.Lock()
+        self._next_poll = 0.0
+        self._latest: dict[str, Any] | None = None
+        self._updated: float | None = None
+        self._error: str | None = None
+
+    def snapshot(self) -> tuple[dict[str, Any], int]:
+        # A shared cache also prevents multiple tabs from multiplying GitHub requests.
+        with self._lock:
+            revision, token = self.auth.credentials()
+            if revision != self._auth_revision:
+                self._auth_revision = revision
+                self._latest = None
+                self._updated = None
+                self._error = None
+                self._next_poll = 0.0
+            if time.monotonic() >= self._next_poll:
+                try:
+                    self._latest = fetch_copilot_usage(token) if token else read_copilot_usage()
+                    self._updated = time.time()
+                    self._error = None
+                except (ValueError, OSError, subprocess.SubprocessError) as error:
+                    self._error = str(error)
+                    print(f"Copilot usage polling failed: {error}", flush=True)
+                self._next_poll = time.monotonic() + self.MIN_INTERVAL
+                if self.auth.credentials()[0] != revision:
+                    self._latest = None
+                    self._updated = None
+                    self._error = "GitHub sign-in changed during the request; retry usage."
+                    self._next_poll = 0.0
+            return {
+                "usage": self._latest,
+                "updated": self._updated,
+                "error": self._error,
+                "stale": self._error is not None and self._latest is not None,
+                "min_interval_seconds": self.MIN_INTERVAL,
+                "auth": self.auth.snapshot(),
+            }, 503 if self._error else 200
+
+
 class TelemetryService:
     def __init__(self, collector: StatsCollector, power: PowerHistory) -> None:
         self.collector = collector
         self.power = power
+        self.copilot = CopilotUsage()
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._latest: dict[str, Any] | None = None
@@ -957,7 +1122,14 @@ class TelemetryService:
 def make_handler(service: TelemetryService) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self) -> None:
-            if urlparse(self.path).path != "/api/cache/clear":
+            path = urlparse(self.path).path
+            if path in {
+                "/api/copilot/auth/start", "/api/copilot/auth/poll",
+                "/api/copilot/auth/disconnect",
+            }:
+                self.handle_github_auth(path)
+                return
+            if path != "/api/cache/clear":
                 self.send_error(404, "Not found")
                 return
             # Require a non-simple request so other sites cannot reset the session.
@@ -966,8 +1138,56 @@ def make_handler(service: TelemetryService) -> type[BaseHTTPRequestHandler]:
                 return
             self.send_json(service.clear_cache())
 
+        def github_auth_allowed(self) -> bool:
+            try:
+                hostname = urlparse(f"http://{self.headers.get('Host', '')}").hostname
+                local_host = hostname == "localhost" or (
+                    hostname is not None and ipaddress.ip_address(hostname).is_loopback
+                )
+                allowed = (
+                    local_host
+                    and ipaddress.ip_address(self.client_address[0]).is_loopback
+                    and self.headers.get("X-Telemetry-Request") == "github-auth"
+                    and self.headers.get("Origin") in (None, f"http://{self.headers.get('Host')}")
+                )
+            except ValueError:
+                allowed = False
+            if not allowed:
+                self.send_json({"error": "GitHub sign-in requires a same-origin localhost request"}, 403)
+            return allowed
+
+        def handle_github_auth(self, path: str) -> None:
+            if not self.github_auth_allowed():
+                return
+            auth = service.copilot.auth
+            try:
+                if path.endswith("/start"):
+                    length = int(self.headers.get("Content-Length", "0"))
+                    if not 0 < length <= 2048 or self.headers.get_content_type() != "application/json":
+                        raise ValueError("Supply a JSON Client ID request of at most 2048 bytes")
+                    payload = json.loads(self.rfile.read(length))
+                    if not isinstance(payload, dict) or not isinstance(payload.get("client_id"), str):
+                        raise ValueError("Supply a public OAuth app Client ID")
+                    data = auth.start(payload["client_id"])
+                elif path.endswith("/poll"):
+                    data = auth.snapshot(poll=True)
+                else:
+                    data = auth.disconnect()
+            except (ValueError, UnicodeError):
+                self.send_json({"error": "Invalid sign-in request. Check the public Client ID and cancel any pending sign-in before retrying."}, 400)
+                return
+            self.send_json(data, 502 if data["state"] == "error" else 200)
+
         def do_GET(self) -> None:
             path = urlparse(self.path).path
+            if path == "/api/copilot/auth":
+                if self.github_auth_allowed():
+                    self.send_json(service.copilot.auth.snapshot())
+                return
+            if path == "/api/copilot":
+                data, status = service.copilot.snapshot()
+                self.send_json(data, status)
+                return
             if path == "/api/stats":
                 data, status = service.snapshot()
                 self.send_json(data, status)

@@ -16,23 +16,36 @@
     .shell { max-width:1920px; margin:auto; padding:16px 20px 10px; }
     header { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:12px; }
     .brand { display:flex; align-items:center; gap:10px; }
+    .brand, .brand > div:last-child { min-width:0; }
     .mark { padding:6px 9px; border:1px solid #b5f36b66; border-radius:6px; color:var(--green); font:700 17px monospace; }
     h1 { font-size:13px; letter-spacing:.13em; margin:0; font-weight:650; }
-    .subtitle { color:var(--muted); margin-top:4px; font-size:10px; }
+    .subtitle { color:var(--muted); margin-top:4px; font-size:10px; overflow-wrap:anywhere; }
+    .header-tools { min-width:0; flex:1; }
+    .header-tools > .controls { justify-content:flex-end; }
+    .header-status { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:3px 7px; color:var(--muted); font-size:9px; margin-top:4px; }
+    .header-status > span { overflow-wrap:anywhere; }
+    .header-status > span + span::before { content:"·"; margin-right:7px; }
     .controls { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
+    .status-group { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
     .control { min-height:29px; padding:4px 8px; border:1px solid var(--line); border-radius:5px; background:#131c25; font-size:11px; }
     .control:hover { border-color:#587083; }
     .control:disabled { cursor:wait; opacity:.5; }
     #cache-size { color:var(--muted); font:10px ui-monospace,monospace; white-space:nowrap; }
     #cache-status { margin:-4px 0 10px; font-size:11px; }
+    #settings-status { margin:0 0 10px; font-size:11px; }
+    #gpu-select { max-width:240px; }
     .live { color:var(--green); font:10px ui-monospace,monospace; letter-spacing:.1em; white-space:nowrap; }
     .live::before { content:""; display:inline-block; width:6px; height:6px; background:currentColor; border-radius:50%; box-shadow:0 0 8px currentColor; margin-right:7px; }
-    .summary { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; min-height:22px; }
-    .chip { font-size:10px; color:var(--muted); background:#111923; border:1px solid var(--line); padding:3px 7px; border-radius:4px; }
+    .summary { display:flex; gap:6px; flex-wrap:wrap; }
+    .warnings:not(:empty) { margin-bottom:10px; }
+    .chip { font-size:10px; color:var(--muted); background:#111923; border:1px solid var(--line); padding:3px 7px; border-radius:4px; white-space:nowrap; }
     .chip.warn { color:var(--orange); border-color:#ffb46a55; }
     .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
     .panel { min-width:0; background:linear-gradient(140deg,#111922,#0e141b); border:1px solid var(--line); border-radius:7px; padding:10px; overflow:hidden; }
-    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:7px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:29px; margin-bottom:7px; }
+    .panel-title { display:flex; align-items:center; gap:8px; min-width:0; }
+    .panel-title h2, .panel-head > .legend, .panel-head > select { flex-shrink:0; }
+    .panel-title .device { min-width:0; min-height:0; margin:0; }
     h2 { margin:0; font-size:11px; text-transform:uppercase; letter-spacing:.1em; font-weight:600; }
     .device { color:var(--muted); font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0 0 7px; min-height:14px; }
     .headline { display:flex; align-items:baseline; gap:8px; margin:0 0 7px; }
@@ -72,9 +85,8 @@
     .sensor-list { max-height:84px; overflow-y:auto; margin-top:5px; }
     .sensor-list:empty { display:none; }
     .energy-chart canvas { height:77px; }
-    .tables { display:grid; grid-template-columns:.9fr 1.1fr; gap:10px; margin-top:10px; }
-    .tables .panel-head { flex-wrap:wrap; }
-    .table-tools { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    .workload-panel .panel-head { flex-wrap:wrap; }
+    .table-tools { display:flex; flex-wrap:wrap; gap:6px; align-items:center; max-width:100%; }
     .table-tools input { width:130px; }
     .table-tools .top-n { display:flex; align-items:center; gap:5px; color:var(--muted); font-size:10px; }
     .table-tools #top-n { width:62px; }
@@ -95,7 +107,6 @@
     .pill { color:var(--cyan); padding:2px 5px; border:1px solid #6de5dc25; border-radius:4px; font-size:9px; }
     .muted { color:var(--muted); }
     .empty { color:var(--muted); padding:18px 8px; text-align:center; font-size:11px; }
-    footer { display:flex; justify-content:space-between; gap:12px; color:var(--muted); font:9px ui-monospace,monospace; margin-top:10px; line-height:1.6; }
     .tooltip { position:fixed; z-index:5; pointer-events:none; padding:8px 10px; border:1px solid #486070; border-radius:5px; background:#101923f5; color:var(--text); white-space:pre-line; font:11px/1.7 ui-monospace,monospace; box-shadow:0 5px 22px #0008; }
     .status-error { color:var(--red); }
     .process-menu { position:fixed; z-index:10; width:230px; max-width:calc(100vw - 12px); padding:6px; background:#131e28; border:1px solid #486070; border-radius:6px; box-shadow:0 8px 26px #0009; }
@@ -104,17 +115,18 @@
     .process-menu button:hover, .process-menu button:focus-visible { background:#6de5dc19; }
     .process-menu button:disabled { color:var(--muted); cursor:default; }
     .process-menu-note { margin:4px 7px; color:var(--muted); font-size:10px; line-height:1.5; }
-    @media(min-width:1500px) { .scroll { max-height:190px; } }
-    @media(max-width:1050px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .tables { grid-template-columns:1fr; } header { align-items:flex-start; } .controls { justify-content:flex-end; } }
-    @media(max-width:650px) { .shell { padding:12px 10px; } header { flex-direction:column; } .controls { justify-content:flex-start; } .grid { grid-template-columns:1fr; } .table-tools { flex-wrap:wrap; } .panel-head { flex-wrap:wrap; } footer { flex-direction:column; } }
+    @media(max-width:1050px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } header { align-items:flex-start; } .controls { justify-content:flex-end; } }
+    @media(max-width:650px) { .shell { padding:12px 10px; } header { flex-direction:column; } .controls { justify-content:flex-start; } .grid { grid-template-columns:1fr; } .table-tools { flex-wrap:wrap; } .panel-head { flex-wrap:wrap; } }
+    @media(max-width:650px) { .header-tools { width:100%; } .header-tools > .controls, .header-status { justify-content:flex-start; } }
   </style>
 </head>
 <body>
   <main class="shell">
     <header>
       <div class="brand"><div class="mark">∿</div><div><h1>TELEMETRY</h1><div class="subtitle" id="machine">Local hardware console</div></div></div>
+      <div class="header-tools">
       <div class="controls">
-        <span class="live" id="live">LIVE</span>
+        <div class="status-group"><span class="live" id="live">LIVE</span><div class="summary" id="summary"></div></div>
         <select class="control" id="gpu-select" aria-label="GPU device"><option value="0">GPU 0</option></select>
         <select class="control" id="window" aria-label="Chart time window"><option value="60">1 min history</option><option value="300" selected>5 min history</option><option value="600">10 min history</option></select>
         <select class="control" id="interval" aria-label="Display refresh interval"><option value="1000">1 s refresh</option><option value="2000" selected>2 s refresh</option><option value="5000">5 s refresh</option><option value="10000">10 s refresh</option></select>
@@ -123,39 +135,38 @@
         <span id="cache-size" title="Estimated server RAM used by retained telemetry and power history, including Python object overhead. Not total app memory or browser cache.">RAM cache: --</span>
         <button class="control" id="clear-cache" title="Clear chart history and reset session energy; monitoring continues" disabled>Clear cache</button>
       </div>
+      <div class="header-status"><span id="last-update">Connecting…</span><span id="uptime">Monitor up —</span></div>
+      </div>
     </header>
+    <div id="settings-status" class="status-error" role="status" aria-live="polite" hidden></div>
     <div id="cache-status" role="status" aria-live="polite" hidden></div>
-    <div class="summary" id="summary"><span class="chip">Connecting to local sampler…</span></div>
-    <section class="grid" aria-label="Hardware performance">
+    <div class="summary warnings" id="warnings" role="status" aria-live="polite"></div>
+    <section class="grid" aria-label="Dashboard metrics and workloads">
       <article class="panel" style="--accent:var(--green)">
-        <div class="panel-head"><h2>01 / CPU</h2><div class="legend" id="cpu-legend"></div></div>
-        <p class="device" id="cpu-name">Detecting processor…</p>
+        <div class="panel-head"><div class="panel-title"><h2>01 / CPU</h2><span class="device" id="cpu-name">Detecting…</span></div><div class="legend" id="cpu-legend"></div></div>
         <div class="headline"><span class="value" id="cpu-value">—<small>%</small></span><span class="secondary" id="cpu-clock">— GHz</span></div>
         <canvas id="cpu-chart" aria-label="CPU utilization history" tabindex="0"></canvas>
         <dl class="stats" id="cpu-stats"></dl>
-        <div class="core-label"><span>LOGICAL THREAD HEATMAP · HOVER FOR LOAD</span><span id="core-summary">—</span></div>
+        <div class="core-label"><span>THREAD LOAD</span><span id="core-summary">—</span></div>
         <div class="cores" id="cores"></div>
       </article>
       <article class="panel" style="--accent:var(--cyan)">
-        <div class="panel-head"><h2>02 / GPU</h2><div class="legend" id="gpu-legend"></div></div>
-        <p class="device" id="gpu-name">Detecting accelerator…</p>
+        <div class="panel-head"><div class="panel-title"><h2>02 / GPU</h2><span class="device" id="gpu-name">Detecting…</span></div><div class="legend" id="gpu-legend"></div></div>
         <div class="headline"><span class="value" id="gpu-value">—<small>%</small></span><span class="secondary" id="gpu-state">—</span></div>
         <canvas id="gpu-chart" aria-label="GPU core and VRAM allocation history" tabindex="0"></canvas>
         <dl class="stats" id="gpu-stats"></dl>
         <div class="allocation"><div class="chart-label"><span id="vram-detail">VRAM —</span><span id="vram-free">— free</span></div><div class="track"><i id="vram-meter" style="--tone:var(--orange)"></i></div></div>
-        <p class="note" id="gpu-note"></p>
+        <p class="note" id="gpu-note" hidden></p>
       </article>
       <article class="panel" style="--accent:var(--blue)">
         <div class="panel-head"><h2>03 / Memory</h2><div class="legend" id="memory-legend"></div></div>
-        <p class="device">System physical RAM · swap / page file</p>
         <div class="headline"><span class="value" id="memory-value">—<small> GiB</small></span><span class="secondary" id="memory-total">/ — GiB</span></div>
         <canvas id="memory-chart" aria-label="Physical RAM and swap usage history" tabindex="0"></canvas>
         <dl class="stats" id="memory-stats"></dl>
-        <div class="allocation"><div class="chart-label"><span>PHYSICAL MEMORY PRESSURE</span><span id="memory-percent">—%</span></div><div class="track"><i id="memory-meter"></i></div></div>
-        <p class="note">VRAM allocation is not memory-controller load. Both are shown separately.</p>
+        <div class="allocation"><div class="chart-label"><span>RAM USED</span><span id="memory-percent">—%</span></div><div class="track"><i id="memory-meter"></i></div></div>
       </article>
       <article class="panel">
-        <div class="panel-head"><h2>04 / Data pipeline I/O</h2><span class="muted" style="font-size:9px">ALL DEVICES</span></div>
+        <div class="panel-head"><h2>04 / Disk &amp; network</h2></div>
         <div class="twins">
           <div><div class="chart-label"><span>DISK · MiB/s</span></div><div class="legend" id="disk-legend"></div><canvas id="disk-chart" aria-label="Disk read and write throughput history" tabindex="0"></canvas></div>
           <div><div class="chart-label"><span>NETWORK · MiB/s</span></div><div class="legend" id="network-legend"></div><canvas id="network-chart" aria-label="Network receive and send throughput history" tabindex="0"></canvas></div>
@@ -165,36 +176,65 @@
         <div class="volumes" id="volumes"></div>
       </article>
       <article class="panel">
-        <div class="panel-head"><h2>05 / Thermals &amp; cooling</h2><select class="control" id="thermal-mode" aria-label="Cooling chart metric"><option value="temperature">Temperature °C</option><option value="fan">GPU fan %</option></select></div>
+        <div class="panel-head"><h2>05 / Temperature &amp; fans</h2><select class="control" id="thermal-mode" aria-label="Cooling chart metric"><option value="temperature">Temperature °C</option><option value="fan">GPU fan %</option></select></div>
         <div class="legend" id="thermal-legend"></div>
         <canvas id="thermal-chart" aria-label="CPU and selected GPU temperature history in Celsius" tabindex="0"></canvas>
         <dl class="stats" id="thermal-stats"></dl>
         <div class="sensor-list" id="sensors"></div>
-        <p class="note" id="sensor-note">Checking optional temperature and fan RPM sensors…</p>
+        <details class="note"><summary id="sensor-summary">Checking sensors…</summary><p id="sensor-note"></p></details>
       </article>
       <article class="panel">
         <div class="panel-head"><h2>06 / Power &amp; energy</h2><select class="control" id="power-mode" aria-label="Power chart metric"><option value="watts">GPU watts</option><option value="energy_wh">Session Wh</option></select></div>
         <div class="headline"><span class="value" id="gpu-power-value">—<small> W</small></span><span class="secondary" id="gpu-energy-value">— Wh</span></div>
         <div class="energy-chart"><canvas id="power-chart" aria-label="GPU power or cumulative energy history" tabindex="0"></canvas></div>
         <dl class="stats" id="power-stats"></dl>
-        <p class="note">All NVIDIA GPUs only. Whole-PC power unavailable. RAM-only history · last 300 samples. Energy resets on server restart or Clear cache; nothing is saved to disk.</p>
+        <p class="note" title="Not whole-PC power. Energy resets on restart or Clear cache; history is RAM-only.">NVIDIA GPUs only · energy since reset</p>
       </article>
-    </section>
-    <section class="tables" aria-label="Training workloads">
-      <article class="panel">
-        <div class="panel-head"><h2>Conda environments</h2><button class="control" id="clear-env">All environments</button></div>
-        <div class="scroll"><table><thead><tr><th>Environment</th><th>CPU</th><th>GPU engine Σ</th><th>RAM</th><th>VRAM</th><th>PIDs</th></tr></thead><tbody id="env-table"></tbody></table></div>
-        <p class="note">Click an environment to inspect its processes. CPU is normalized to the whole machine; summed GPU engines can exceed 100%.</p>
+      <article class="panel" style="--accent:var(--cyan)" aria-label="GitHub Copilot usage">
+        <div class="panel-head"><h2>07 / GitHub AI usage</h2><select class="control" id="copilot-interval" aria-label="GitHub usage refresh interval" title="Independent of hardware refresh and pause. GitHub reporting may lag."><option value="60000" selected>1 min refresh</option><option value="120000">2 min refresh</option><option value="300000">5 min refresh</option></select></div>
+        <p class="device" id="copilot-plan">Copilot</p>
+        <div class="headline"><span class="value" id="copilot-value">—</span><span class="secondary" id="copilot-unit">used</span></div>
+        <div class="track" id="copilot-track" hidden><i id="copilot-meter" style="--tone:var(--cyan)"></i></div>
+        <dl class="stats" id="copilot-stats"></dl>
+        <p class="note" id="copilot-status" role="status" aria-live="polite">Checking GitHub usage...</p>
+        <div class="controls" style="margin-top:10px">
+          <button class="control" id="github-signin">Sign in with GitHub</button>
+          <button class="control" id="github-disconnect" hidden>Disconnect</button>
+        </div>
+        <details id="github-setup" class="note">
+          <summary>Sign-in setup</summary>
+          <ol>
+            <li><a href="https://github.com/settings/applications/new" target="_blank" rel="noopener noreferrer">Register an OAuth app</a> named Telemetry.</li>
+            <li>Homepage and callback: <code>http://127.0.0.1:6767</code>.</li>
+            <li>Enable <strong>Device Flow</strong>.</li>
+            <li>Enter its public <strong>Client ID</strong> below, not a secret or token.</li>
+          </ol>
+          <label for="github-client-id">Public OAuth Client ID</label>
+          <input class="control" id="github-client-id" type="text" autocomplete="off" spellcheck="false" maxlength="100" style="width:100%;margin-top:5px">
+          <p>Public ID saved in this browser. Tokens last until disconnect or restart. Copilot access may be restricted.</p>
+        </details>
+        <p class="note" id="github-auth-status" role="status" aria-live="polite"></p>
+        <div id="github-device" class="note" hidden>
+          Enter code <strong id="github-user-code" style="font:700 18px ui-monospace,monospace;user-select:all"></strong>
+          at <a id="github-device-link" href="https://github.com/login/device" target="_blank" rel="noopener noreferrer">GitHub device sign-in</a>.
+          Approve only the OAuth app you registered.
+        </div>
+        <p class="note" id="github-tab-status" role="status" hidden></p>
+        <a class="note" href="https://github.com/settings/copilot" target="_blank" rel="noopener noreferrer" title="View usage on GitHub">GitHub</a>
       </article>
-      <article class="panel">
-        <div class="panel-head"><h2>Workload processes <span class="muted" id="process-count"></span></h2><div class="table-tools"><label class="top-n" for="top-n">Top N <input class="control" id="top-n" type="number" min="1" step="1" value="50" required aria-describedby="process-limit-error"></label><select class="control" id="scope" aria-label="Process scope"><option value="all">All processes</option><option value="conda">Conda only</option></select><input class="control" id="search" aria-label="Search processes" placeholder="Name / PID / env"></div></div>
-        <p id="process-limit-error" class="note status-error" role="status" hidden>Enter a positive whole number. The last valid limit is still being used.</p>
+      <article class="panel workload-panel" aria-label="Conda environments">
+        <div class="panel-head"><h2>08 / Conda environments</h2><button class="control" id="clear-env">All environments</button></div>
+        <div class="scroll"><table><thead><tr><th>Environment</th><th title="Share of total CPU capacity">CPU</th><th title="Summed GPU engines; can exceed 100%">GPU Σ</th><th>RAM</th><th>VRAM</th><th>PIDs</th></tr></thead><tbody id="env-table"></tbody></table></div>
+        <p class="note">Click to filter processes</p>
+      </article>
+      <article class="panel workload-panel" aria-label="Workload processes">
+        <div class="panel-head"><h2>09 / Workload processes <span class="muted" id="process-count"></span></h2><div class="table-tools"><label class="top-n" for="top-n">Top N <input class="control" id="top-n" type="number" min="1" step="1" value="50" required aria-describedby="process-limit-error"></label><select class="control" id="scope" aria-label="Process scope"><option value="all">All processes</option><option value="conda">Conda only</option></select><input class="control" id="search" aria-label="Search processes" placeholder="Name / PID / env"></div></div>
+        <p id="process-limit-error" class="note status-error" role="status" hidden>Enter a positive whole number.</p>
         <div class="scroll"><table><thead><tr><th>Process / PID</th><th>Environment</th><th><button data-sort="cpu">CPU ↕</button></th><th><button data-sort="gpu_utilization">GPU Σ ↕</button></th><th><button data-sort="memory_mb">RAM ↕</button></th><th><button data-sort="gpu_memory">VRAM ↕</button></th><th>Threads</th><th>Age</th></tr></thead><tbody id="process-table"></tbody></table></div>
-        <p class="note">Right-click a process to pin/unpin it (keyboard: Shift+F10). Pinned processes bypass Top N and filters. Telemetry stays auto-pinned. Manual pins last until page reload or process exit.</p>
-        <p class="note" id="attribution-note">GPU attribution: NVIDIA compute memory or Windows Conda-process counters. “—” means unavailable / not attributed, not zero.</p>
+        <p class="note" title="Shift+F10 also opens the menu. Pinned processes bypass filters and Top N; pins clear on reload or process exit.">Right-click to pin</p>
+        <p class="note" id="attribution-note" hidden></p>
       </article>
     </section>
-    <footer><span id="last-update">Waiting for sampler…</span><span id="uptime">Local-only · hardware telemetry, not model loss/accuracy</span></footer>
   </main>
   <div class="tooltip" id="tooltip" hidden></div>
   <div class="process-menu" id="process-menu" role="menu" aria-label="Workload process actions" tabindex="-1" hidden>
@@ -210,6 +250,9 @@
     const chartState = new Map();
     const manualPins = new Set();
     let menuTarget = null;
+    let preferredGpu = null;
+    const preferenceControls = ["window","interval","power-mode","thermal-mode","scope","copilot-interval"];
+    const preferencesKey = "telemetry.preferences";
     const fmt = (value, digits = 1) => value != null && Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
     const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
     const gib = mb => mb == null ? "—" : `${fmt(mb / 1024,2)} GiB`;
@@ -229,13 +272,55 @@
       "memory-legend":[["ram","RAM"],["swap","Swap"]], "disk-legend":[["read","Read"],["write","Write"]],
       "network-legend":[["received","Down"],["sent","Up"]], "thermal-legend":[["cpu_temperature","CPU"],["temperature","GPU"]]
     };
-    Object.entries(legends).forEach(([id,lines])=>legend(id,lines));
+    function settingsError(message) {
+      $("settings-status").textContent=message;
+      $("settings-status").hidden=false;
+    }
+    function loadPreferences() {
+      try {
+        const raw=localStorage.getItem(preferencesKey);
+        if(raw===null) return;
+        const saved=JSON.parse(raw);
+        const series=new Set(Object.entries(legends).flatMap(([id,lines])=>lines.map(([key])=>`${id}:${key}`)).concat("thermal-legend:fan"));
+        if(!saved||saved.version!==1||!saved.controls
+          ||!preferenceControls.every(id=>typeof saved.controls[id]==="string"&&[...$(id).options].some(option=>option.value===saved.controls[id]))
+          ||!(saved.gpuIndex===null||typeof saved.gpuIndex==="string"&&/^\d+$/.test(saved.gpuIndex)&&Number.isSafeInteger(Number(saved.gpuIndex))&&String(Number(saved.gpuIndex))===saved.gpuIndex)
+          ||!Number.isSafeInteger(saved.topN)||saved.topN<1
+          ||!["cpu","gpu_utilization","memory_mb","gpu_memory"].includes(saved.sort)
+          ||typeof saved.descending!=="boolean"
+          ||!Array.isArray(saved.hiddenSeries)||!saved.hiddenSeries.every(key=>series.has(key))) {
+          throw new TypeError("Invalid saved dashboard settings");
+        }
+        for(const id of preferenceControls) $(id).value=saved.controls[id];
+        preferredGpu=saved.gpuIndex;
+        topN=saved.topN; $("top-n").value=String(topN);
+        sort=saved.sort; descending=saved.descending;
+        for(const key of saved.hiddenSeries) hidden.add(key);
+      } catch(error) {
+        if(!(error instanceof SyntaxError)&&!(error instanceof TypeError)&&!(error instanceof DOMException)) throw error;
+        settingsError("Settings could not be loaded; using defaults.");
+      }
+    }
+    function savePreferences() {
+      try {
+        localStorage.setItem(preferencesKey,JSON.stringify({
+          version:1, controls:Object.fromEntries(preferenceControls.map(id=>[id,$(id).value])),
+          gpuIndex:preferredGpu, topN, sort, descending, hiddenSeries:[...hidden]
+        }));
+        $("settings-status").hidden=true;
+      } catch(error) {
+        if(!(error instanceof DOMException)) throw error;
+        settingsError("Settings could not be saved in this browser.");
+      }
+    }
+    loadPreferences();
+    Object.entries(legends).forEach(([id,lines])=>legend(id,id==="thermal-legend"&&$("thermal-mode").value==="fan"?[["fan","GPU fan duty"]]:lines));
     document.addEventListener("click", event => {
       const button = event.target.closest("[data-series]");
       if (!button) return;
       const key=button.dataset.series;
       if (hidden.has(key)) hidden.delete(key); else hidden.add(key);
-      button.setAttribute("aria-pressed",String(!hidden.has(key))); drawCharts();
+      button.setAttribute("aria-pressed",String(!hidden.has(key))); drawCharts(); savePreferences();
     });
     function samples() {
       if (!latest) return [];
@@ -318,7 +403,7 @@
       $("process-menu-title").textContent=`${process.name} · PID ${process.pid}`;
       $("toggle-process-pin").textContent=automatic?"Automatically pinned":manualPins.has(key)?"Unpin process":"Pin process";
       $("toggle-process-pin").disabled=automatic||!key;
-      $("process-menu-note").textContent=automatic?"Telemetry processes are always included.":!key?"Pinning is unavailable because the OS did not expose this process's start time.":"Keeps this process above the workload limit and visible through filters. Pins are memory-only.";
+      $("process-menu-note").textContent=automatic?"Always shown.":!key?"Cannot pin: process start time unavailable.":"Stays visible through filters. Clears on reload.";
     }
     function openProcessMenu(row,x,y) {
       const process=latest?.processes.find(p=>p.pid===Number(row.dataset.pid));
@@ -345,7 +430,8 @@
       const compare=(a,b)=>(descending?-1:1)*((a[sort]??0)-(b[sort]??0))||b.cpu-a.cpu;
       processes.sort(compare); telemetry.sort(compare); pinned.sort(compare);
       const workloads=processes.slice(0,topN), shown=[...telemetry,...pinned,...workloads];
-      $("process-count").textContent=`/ top ${workloads.length} of ${processes.length} + ${telemetry.length} telemetry + ${pinned.length} pinned`;
+      $("process-count").textContent=`/ ${shown.length} shown`;
+      $("process-count").title=`Top ${workloads.length} of ${processes.length} matches; ${telemetry.length} telemetry and ${pinned.length} pinned`;
       $("process-table").innerHTML=shown.length?shown.map(p=>{
         const automatic=p.environment==="telemetry", isPinned=automatic||manualPins.has(processKey(p));
         return `<tr class="${isPinned?"pinned-process":""}" data-pid="${p.pid}" data-process-key="${esc(processKey(p)||"")}" tabindex="0" aria-haspopup="menu"><td title="${esc(p.name)} · ${esc(p.status)}">${esc(p.name)} <span class="muted">${p.pid}</span>${isPinned?`<span class="pinned-label" title="${automatic?"Telemetry is always included":"Right-click to unpin"}">${automatic?"auto":"pinned"}</span>`:""}</td><td><span class="pill">${esc(p.environment)}</span></td><td>${fmt(p.cpu)}%</td><td>${p.gpu_utilization?percent(p.gpu_utilization):"—"}</td><td>${gib(p.memory_mb)}</td><td>${p.gpu_memory?gib(p.gpu_memory):"—"}</td><td>${fmt(p.threads,0)}</td><td>${duration(p.elapsed)}</td></tr>`;
@@ -360,32 +446,40 @@
       latest=data; const s=data.system, n=s.network, d=s.disk, p=data.power;
       const selection=$("gpu-select").value, options=data.gpus.map(g=>`${g.index}:${g.name}`).join("|");
       if ($("gpu-select").dataset.options!==options) {
-        $("gpu-select").innerHTML=data.gpus.length?data.gpus.map(g=>`<option value="${g.index}">GPU ${g.index}</option>`).join(""):'<option value="-1">No GPU</option>';
-        if(data.gpus.some(g=>String(g.index)===selection)) $("gpu-select").value=selection;
+        $("gpu-select").innerHTML=data.gpus.length?data.gpus.map(g=>`<option value="${g.index}">${esc(g.name)} · GPU ${g.index}</option>`).join(""):'<option value="-1">No GPU</option>';
+        const requested=preferredGpu??selection;
+        if(data.gpus.some(g=>String(g.index)===requested)) $("gpu-select").value=requested;
+        else if(data.gpus.some(g=>String(g.index)===selection)) $("gpu-select").value=selection;
         $("gpu-select").dataset.options=options;
       }
       const g=gpu();
+      $("gpu-select").title=g?`${g.name} · GPU ${g.index}`:"No GPU";
       $("machine").textContent=`${s.hostname} · ${s.os} · ${s.cpu_threads} threads`;
       const warnings=[];
       if(s.memory_percent>=90) warnings.push("High RAM pressure");
       if(g?.memory_total&&g.memory_used/g.memory_total>=.9) warnings.push("High VRAM allocation");
       if(g?.temperature>=85) warnings.push("GPU ≥ 85°C");
       if(s.cpu_temperature>=90) warnings.push("CPU ≥ 90°C");
-      $("summary").innerHTML=[`${s.process_count} processes`,`${s.thread_count} threads`,`System up ${duration(s.boot_uptime)}`,`Sampler target 2 s · display ${Number($("interval").value)/1000} s`].map(text=>`<span class="chip">${esc(text)}</span>`).join("")+warnings.map(text=>`<span class="chip warn">${esc(text)}</span>`).join("");
+      $("summary").innerHTML=[`${s.process_count} processes`,`System up ${duration(s.boot_uptime)}`].map(text=>`<span class="chip">${esc(text)}</span>`).join("");
+      $("warnings").innerHTML=warnings.map(text=>`<span class="chip warn">${esc(text)}</span>`).join("");
+      $("summary").title=`${s.thread_count} process threads · sampler target 2 s · display ${Number($("interval").value)/1000} s`;
       $("cpu-name").textContent=s.cpu_name;
+      $("cpu-name").title=s.cpu_name;
       $("cpu-value").innerHTML=`${fmt(s.cpu_percent,0)}<small>%</small>`;
       $("cpu-clock").textContent=`${fmt(s.cpu_frequency==null?null:s.cpu_frequency/1000,2)} GHz`;
       stats("cpu-stats",[["Cores / logical",`${s.cpu_cores} / ${s.cpu_threads}`],["Temperature",`${fmt(s.cpu_temperature)} °C`],["Context switches",`${fmt(s.context_switches,0)}/s`],["Interrupts",`${fmt(s.interrupts,0)}/s`]]);
       $("cores").innerHTML=s.per_cpu.map((v,i)=>`<div class="core" title="Logical CPU ${i}: ${fmt(v)}% utilization" style="background:rgba(181,243,107,${.025+v/100*.4})"><span>${String(i).padStart(2,"0")}</span>${fmt(v,0)}%</div>`).join("");
       $("core-summary").textContent=`${s.per_cpu.filter(v=>v>=80).length} ≥ 80%`;
       $("gpu-name").textContent=g?.name||data.gpu_error||"No supported accelerator";
+      $("gpu-name").title=$("gpu-name").textContent;
       $("gpu-value").innerHTML=`${fmt(g?.utilization,0)}<small>%</small>`;
       $("gpu-state").textContent=g?`${g.performance_state||"—"} · PCIe ${fmt(g.pcie_generation,0)} ×${fmt(g.pcie_width,0)}`:"Unavailable";
       stats("gpu-stats",[["Core / max MHz",`${fmt(g?.graphics_clock,0)} / ${fmt(g?.max_graphics_clock,0)}`],["Memory clock",`${fmt(g?.memory_clock,0)} MHz`],["Mem controller",percent(g?.memory_utilization)],["Board / limit W",`${fmt(g?.power)} / ${fmt(g?.power_limit,0)}`],["Temperature",`${fmt(g?.temperature)} °C`],["Fan duty",percent(g?.fan_speed)],["Encoder",percent(g?.encoder)],["Decoder",percent(g?.decoder)]]);
       $("vram-detail").textContent=`VRAM ${gib(g?.memory_used)} / ${gib(g?.memory_total)}`;
       $("vram-free").textContent=`${gib(g?.memory_total!=null&&g?.memory_used!=null?g.memory_total-g.memory_used:null)} free`;
       meter("vram-meter",g?.memory_total?g.memory_used/g.memory_total*100:0);
-      $("gpu-note").textContent=g?.extra_metrics_error||"Fan duty is %, not RPM. A 0% reading can indicate fan-stop mode.";
+      $("gpu-note").textContent=g?.extra_metrics_error||"";
+      $("gpu-note").hidden=!g?.extra_metrics_error;
       $("memory-value").innerHTML=`${fmt(s.memory_used)}<small> GiB</small>`;
       $("memory-total").textContent=`/ ${fmt(s.memory_total)} GiB`;
       stats("memory-stats",[["Available",`${fmt(s.memory_available)} GiB`],["RAM allocated",percent(s.memory_percent)],["OS cache",s.memory_cached==null?"Not exposed":`${fmt(s.memory_cached)} GiB`],["Swap used",`${fmt(s.swap_used,2)} GiB`],["Swap capacity",`${fmt(s.swap_total)} GiB`],["Swap utilization",s.swap_total?percent(s.swap_used/s.swap_total*100):"No swap"]]);
@@ -396,14 +490,16 @@
       stats("thermal-stats",[["CPU package",`${fmt(s.cpu_temperature)} °C`],["GPU core",`${fmt(g?.temperature)} °C`],["GPU fan duty",percent(g?.fan_speed)]]);
       const sensors=data.hardware.sensors;
       $("sensors").innerHTML=sensors.map(sensor=>`<div class="subrow" title="${esc(sensor.identifier)}"><span class="name">${esc(sensor.name)}</span><span>${fmt(sensor.value,sensor.kind==="Fan"?0:1)} ${esc(sensor.unit)}</span></div>`).join("");
-      $("sensor-note").textContent=data.hardware.message+(data.hardware.updated?` · sampled ${new Date(data.hardware.updated*1000).toLocaleTimeString()}`:"");
+      $("sensor-summary").textContent=data.hardware.source?"Sensor details":"Extra sensors unavailable";
+      $("sensor-note").textContent=data.hardware.message+(data.hardware.updated?` · ${new Date(data.hardware.updated*1000).toLocaleTimeString()}`:"");
       $("gpu-power-value").innerHTML=`${fmt(p.gpu_watts)}<small> W</small>`;
       $("gpu-energy-value").textContent=`${fmt(p.gpu_energy_wh,3)} Wh`;
       const watts=p.history.map(v=>v.watts).filter(Number.isFinite);
-      stats("power-stats",[["GPU energy this session",`${fmt(p.gpu_energy_wh/1000,6)} kWh`],["Measured time",duration(p.measured_seconds)],["Recent peak (≤10m)",`${fmt(watts.length?Math.max(...watts):null)} W`]]);
-      $("attribution-note").textContent=data.gpu_attribution_error||"GPU: NVIDIA compute memory / Windows Conda engine counters (slower updates). “—” = unavailable or not attributed.";
-      $("last-update").textContent=`UPDATED ${new Date(data.timestamp*1000).toLocaleTimeString()} · server sampling continues when paused`;
-      $("uptime").textContent=`Monitor up ${duration(s.uptime)} · local-only · no model loss/accuracy instrumentation`;
+      stats("power-stats",[["Session energy",`${fmt(p.gpu_energy_wh/1000,6)} kWh`],["Measured time",duration(p.measured_seconds)],["Recent peak",`${fmt(watts.length?Math.max(...watts):null)} W`]]);
+      $("attribution-note").textContent=data.gpu_attribution_error||"";
+      $("attribution-note").hidden=!data.gpu_attribution_error;
+      $("last-update").textContent=`Updated ${new Date(data.timestamp*1000).toLocaleTimeString()}`;
+      $("uptime").textContent=`Monitor up ${duration(s.uptime)}`;
       $("live").classList.remove("status-error"); $("live").textContent=paused?"PAUSED":"LIVE";
       renderWorkloads(); drawCharts();
     }
@@ -415,7 +511,7 @@
         render(data); updateCache(data.cache);
       } catch(error) {
         $("live").textContent="OFFLINE"; $("live").classList.add("status-error");
-        $("last-update").textContent=`Telemetry unavailable · ${error.message} · displayed values are stale`;
+        $("last-update").textContent=`Offline · ${error.message} · values stale`;
       } finally {busy=false;}
     }
     function updateCache(cache) {
@@ -437,7 +533,7 @@
         if(data.system) render(data);
         $("tooltip").hidden=true;
         updateCache(data.cache);
-        status.textContent="RAM cache cleared. Chart history and session energy reset; monitoring continues.";
+        status.textContent="Cache cleared · energy reset";
       } catch(error) {
         status.classList.add("status-error"); status.textContent=`Could not clear RAM cache: ${error.message}`;
       } finally {busy=false;$("clear-cache").disabled=false;}
@@ -448,13 +544,17 @@
     $("refresh").addEventListener("click",()=>refresh(true));
     ["window","power-mode"].forEach(id=>$(id).addEventListener("change",drawCharts));
     $("thermal-mode").addEventListener("change",()=>{legend("thermal-legend",$("thermal-mode").value==="fan"?[["fan","GPU fan duty"]]:legends["thermal-legend"]);drawCharts();});
-    $("gpu-select").addEventListener("change",()=>{if(latest)render(latest);});
+    $("gpu-select").addEventListener("change",()=>{
+      preferredGpu=$("gpu-select").value==="-1"?null:$("gpu-select").value;
+      if(latest) render(latest);
+      savePreferences();
+    });
     ["search","scope"].forEach(id=>$(id).addEventListener(id==="search"?"input":"change",renderWorkloads));
     $("top-n").addEventListener("input",()=>{
       const input=$("top-n"), value=input.valueAsNumber;
       const valid=input.validity.valid&&Number.isSafeInteger(value)&&value>0;
       $("process-limit-error").hidden=valid; input.setAttribute("aria-invalid",String(!valid));
-      if(valid){topN=value;renderWorkloads();}
+      if(valid){topN=value;renderWorkloads();savePreferences();}
     });
     $("clear-env").addEventListener("click",()=>{selectedEnv=null;renderWorkloads();});
     function selectEnvironment(event) {const row=event.target.closest("[data-env]");if(row){selectedEnv=selectedEnv===row.dataset.env?null:row.dataset.env;renderWorkloads();}}
@@ -483,9 +583,170 @@
       const row=$("process-table").querySelector(`[data-pid="${menuTarget.pid}"]`), rect=row?.getBoundingClientRect();
       if(!rect||rect.top!==menuTarget.rowTop||rect.left!==menuTarget.rowLeft) closeProcessMenu();
     },true);
-    document.querySelectorAll("[data-sort]").forEach(button=>button.addEventListener("click",()=>{descending=sort===button.dataset.sort?!descending:true;sort=button.dataset.sort;renderWorkloads();}));
+    document.querySelectorAll("[data-sort]").forEach(button=>button.addEventListener("click",()=>{descending=sort===button.dataset.sort?!descending:true;sort=button.dataset.sort;renderWorkloads();savePreferences();}));
+    for(const id of preferenceControls) $(id).addEventListener("change",savePreferences);
     window.addEventListener("resize",()=>{drawCharts();$("tooltip").hidden=true;closeProcessMenu();});
-    refresh();schedule();
+    let copilotTimer, copilotBusy=false, copilotGeneration=0;
+    let authTimer, authBusy=false, authState=null, githubLoginTab=null;
+    function githubTabNotice(message) {
+      $("github-tab-status").textContent=message;
+      $("github-tab-status").hidden=!message;
+    }
+    function closeGitHubLoginTab() {
+      if(!githubLoginTab) {
+        if(!$("github-tab-status").hidden) githubTabNotice("Close the GitHub tab manually.");
+        return;
+      }
+      const tab=githubLoginTab;
+      githubLoginTab=null;
+      try {
+        if(tab.closed) {
+          githubTabNotice("Close the GitHub tab if it is still open.");
+          return;
+        }
+        tab.close();
+        githubTabNotice("");
+        setTimeout(()=>{
+          if(!githubLoginTab&&!tab.closed) githubTabNotice("Close the GitHub tab manually.");
+        },250);
+      } catch(error) {
+        if(!(error instanceof DOMException)||error.name!=="SecurityError") throw error;
+        githubTabNotice("Close the GitHub tab manually.");
+      }
+    }
+    $("github-device-link").addEventListener("click",event=>{
+      if(event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey) return;
+      if(githubLoginTab&&!githubLoginTab.closed) {
+        event.preventDefault();
+        githubLoginTab.focus();
+        return;
+      }
+      const tab=window.open("about:blank","_blank");
+      if(!tab) {
+        githubTabNotice("Allow pop-ups, or open the link manually.");
+        return;
+      }
+      event.preventDefault();
+      githubLoginTab=tab;
+      tab.location.replace($("github-device-link").href);
+      githubTabNotice("");
+    });
+    function renderCopilot(data) {
+      const usage=data.usage;
+      $("copilot-plan").hidden=Boolean(usage&&!data.error);
+      if(usage) {
+        $("copilot-plan").textContent=`Copilot${usage.plan?` · ${usage.plan}`:""}`;
+        $("copilot-value").textContent=usage.used_percent==null?"N/A":`${fmt(usage.used_percent)}%`;
+        $("copilot-unit").textContent=`${usage.unit} used`;
+        $("copilot-track").hidden=usage.used_percent==null;
+        meter("copilot-meter",usage.used_percent);
+        const reset=usage.reset_at?new Date(usage.reset_at*1000).toLocaleString():usage.reset_date||"Not reported";
+        stats("copilot-stats",[["Used",usage.used==null?"Not reported":fmt(usage.used,2)],["Allowance",usage.unlimited?"No individual cap":usage.total==null?"Not reported":fmt(usage.total,2)],["Resets",reset]]);
+      } else {
+        $("copilot-plan").textContent="Copilot";
+        $("copilot-value").textContent="—";
+        $("copilot-unit").textContent="used";
+        $("copilot-track").hidden=true;
+        stats("copilot-stats",[]);
+      }
+      const sampled=data.updated?`Updated ${new Date(data.updated*1000).toLocaleTimeString()}`:"";
+      const error=data.error==="Use Sign in with GitHub in this box, or set COPILOT_TOKEN (optional CLI: gh auth login)"?"Sign in to view usage.":data.error;
+      $("copilot-status").classList.toggle("status-error",Boolean(data.error));
+      $("copilot-status").title=data.error||"";
+      $("copilot-status").textContent=error?[data.stale?"STALE":null,sampled,error].filter(Boolean).join(" · "):!usage?"No usage data.":[sampled,usage.unlimited?"Uncapped · % unavailable":null].filter(Boolean).join(" · ");
+    }
+    async function refreshCopilot() {
+      if(copilotBusy||authState==="pending") return;
+      copilotBusy=true;
+      const generation=copilotGeneration;
+      clearTimeout(copilotTimer);
+      try {
+        const response=await fetch("/api/copilot",{cache:"no-store"}), data=await response.json();
+        if(!response.ok&&!data.error) throw new Error(`HTTP ${response.status}`);
+        if(generation===copilotGeneration&&data.auth) renderAuth(data.auth);
+        if(generation===copilotGeneration) renderCopilot(data);
+      } catch(error) {
+        if(generation===copilotGeneration) {
+          $("copilot-status").classList.add("status-error");
+          $("copilot-status").textContent=`GitHub unavailable · ${error.message} · values stale`;
+        }
+      } finally {
+        copilotBusy=false;
+        copilotTimer=setTimeout(refreshCopilot,generation===copilotGeneration?Number($("copilot-interval").value):0);
+      }
+    }
+    $("copilot-interval").addEventListener("change",()=>{
+      clearTimeout(copilotTimer);
+      copilotTimer=setTimeout(refreshCopilot,Number($("copilot-interval").value));
+    });
+    function renderAuth(data) {
+      const changed=authState!==data.state;
+      authState=data.state;
+      const waiting=["Open GitHub, enter the code below, and approve this app.","Waiting for you to approve sign-in on GitHub."];
+      const message=data.state==="authorized"||data.state==="signed_out"?"":data.state==="pending"&&waiting.includes(data.message)?"Awaiting approval":data.message;
+      $("github-auth-status").textContent=message+(data.state==="pending"?` · ${duration(data.expires_in)} left`:"");
+      $("github-auth-status").title=data.message;
+      $("github-auth-status").hidden=!message;
+      $("github-auth-status").classList.toggle("status-error",data.state==="error");
+      $("github-device").hidden=data.state!=="pending";
+      $("github-user-code").textContent=data.user_code||"";
+      $("github-signin").hidden=data.state==="authorized"||data.state==="pending";
+      $("github-setup").hidden=data.state==="authorized";
+      if(data.state==="authorized") $("github-setup").open=false;
+      $("github-disconnect").hidden=data.state!=="authorized"&&data.state!=="pending";
+      $("github-disconnect").textContent=data.state==="pending"?"Cancel sign-in":"Disconnect";
+      clearTimeout(authTimer);
+      if(data.state==="pending") authTimer=setTimeout(()=>githubAuth("poll"),(data.poll_after||5)*1000);
+      if(changed) {
+        if(data.state==="authorized"||data.state==="signed_out") closeGitHubLoginTab();
+        else if(data.state==="pending") githubTabNotice("");
+        copilotGeneration++;
+        renderCopilot({usage:null});
+        if(data.state==="pending") $("copilot-status").textContent="Signing in…";
+        else refreshCopilot();
+      }
+    }
+    async function githubAuth(action=null,body=null) {
+      if(authBusy) return;
+      authBusy=true; clearTimeout(authTimer);
+      $("github-signin").disabled=true; $("github-disconnect").disabled=true;
+      let pollAfter=5;
+      try {
+        const response=await fetch(`/api/copilot/auth${action?`/${action}`:""}`,{
+          method:action?"POST":"GET", cache:"no-store",
+          headers:{"X-Telemetry-Request":"github-auth",...(body?{"Content-Type":"application/json"}:{})},
+          ...(body?{body:JSON.stringify(body)}:{})
+        });
+        const data=await response.json();
+        if(!response.ok&&!data.state) throw new Error(data.error||`HTTP ${response.status}`);
+        renderAuth(data); pollAfter=data.poll_after||5;
+      } catch(error) {
+        $("github-auth-status").hidden=false;
+        $("github-auth-status").classList.add("status-error");
+        $("github-auth-status").textContent=`GitHub sign-in unavailable: ${error.message}`;
+      } finally {
+        authBusy=false; $("github-signin").disabled=false; $("github-disconnect").disabled=false;
+        clearTimeout(authTimer);
+        if(authState==="pending") authTimer=setTimeout(()=>githubAuth("poll"),pollAfter*1000);
+      }
+    }
+    $("github-signin").addEventListener("click",()=>{
+      const clientId=$("github-client-id").value.trim();
+      if(!/^[a-z0-9]{1,100}$/i.test(clientId)) {
+        $("github-setup").open=true;
+        $("github-auth-status").hidden=false;
+        $("github-auth-status").classList.add("status-error");
+        $("github-auth-status").textContent="Enter your OAuth app's public Client ID.";
+        $("github-client-id").focus(); return;
+      }
+      try {localStorage.setItem("telemetry.githubClientId",clientId);}
+      catch(error) {console.warn("Could not save the public GitHub Client ID in browser settings.",error);}
+      githubAuth("start",{client_id:clientId});
+    });
+    $("github-disconnect").addEventListener("click",()=>githubAuth("disconnect"));
+    try {$("github-client-id").value=localStorage.getItem("telemetry.githubClientId")||"";}
+    catch(error) {console.warn("Could not load the public GitHub Client ID from browser settings.",error);}
+    refresh();schedule();refreshCopilot();githubAuth();
   </script>
 </body>
 </html>

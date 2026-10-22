@@ -2,6 +2,22 @@
 
 A local, live dashboard for CPU and NVIDIA GPU utilization, thermals, memory,
 power, clocks, Conda environment activity, and training processes.
+The nine panels share a compact **3 x 3 desktop grid**, including GitHub AI usage
+and both workload tables. Smaller windows switch to two columns, then one;
+workload tables scroll within their panels rather than adding a separate row.
+Panel text is kept brief; hover hints and expandable setup/sensor details hold
+extra explanations. Missing readings, warnings, and errors remain visible.
+Process count and system uptime sit beside LIVE. CPU/GPU model names share the
+panel headers (hover for the full name), and the GPU selector identifies each
+device by name and index.
+Last update and monitor uptime share a compact line beneath the top controls.
+
+Display settings save automatically in this browser: GPU selection, refresh
+intervals, chart window and modes, legend visibility, process scope, sorting, and
+Top N. They restore after reload or restart when using the same browser profile,
+hostname, and port. Search, environment filters, manual pins, pause state, and
+login tokens are not saved. If browser storage is unavailable or saved settings
+are invalid, the dashboard shows a warning and remains usable.
 
 ## Run
 
@@ -127,6 +143,79 @@ environment is an estimate, sums usage across engines and processes, and can
 exceed 100%. These counters can be unavailable when the OS does not expose
 process-level GPU counters.
 
+## GitHub Copilot AI usage
+
+The **GitHub AI usage** box shows the percentage of your included Copilot
+allowance used, the used/total amounts when reported, and the quota reset.
+Its own refresh selector defaults to **1 minute**, with 2- and 5-minute options.
+This polling is independent of the hardware refresh and pause controls.
+The server caches successes and failures for at least 60 seconds across tabs;
+hardware sampling is never blocked by a GitHub request. Polling stops when no
+dashboard pages are open. Clearing hardware history does not reset GitHub usage.
+
+### Sign in without additional software
+
+The box has **Sign in with GitHub**, implemented using Python's standard library
+and GitHub's OAuth device flow. No GitHub CLI, extra package, client secret, or
+local callback listener is required. GitHub requires a registered OAuth app:
+
+1. Expand **Sign-in setup** in the box and follow the registration
+   link, or open <https://github.com/settings/applications/new>.
+2. Name the app **Telemetry**. Set both Homepage URL and Authorization callback
+   URL to `http://127.0.0.1:6767` (adjust for a custom port). The callback is
+   required by registration but is not used by device flow.
+3. Enable **Device Flow** in the OAuth app's settings.
+4. Paste its public **Client ID** into the box, then click **Sign in with GitHub**.
+   Do not generate or enter a client secret or personal access token.
+5. Open the displayed GitHub device sign-in link, enter the one-time code, and
+   approve the app you registered using your Copilot account. The dashboard
+   detects approval automatically, attempts to close the sign-in tab it opened,
+   and checks your usage. Canceling sign-in also closes that tracked tab.
+
+Use a normal click on the dashboard's device sign-in link for automatic closing.
+Manually opened tabs, modified clicks, page reloads, pop-up blocking, or GitHub's
+cross-origin browser policies can prevent automatic closing. In that case close
+the GitHub tab yourself; authorization and usage polling still work. Only the
+sign-in tab opened by this dashboard page is tracked; other tabs are untouched.
+Once authorized, setup instructions and redundant sign-in status disappear.
+Successful usage keeps only the percentage, counts, reset, timestamp, and controls;
+errors and stale-data warnings remain visible.
+
+The app requests only the `read:user` OAuth scope, not repository access.
+Only the public Client ID is saved in your browser's settings. Device codes and
+access tokens stay in server memory, are sent only to GitHub, and are never
+included in browser responses or saved to disk. A page refresh keeps the current
+sign-in; a server restart requires signing in again. **Cancel sign-in** stops a
+pending authorization; **Disconnect** discards the server's session token and
+cached account usage. To revoke the OAuth grant itself, use
+<https://github.com/settings/applications>. Only sign in from a localhost URL;
+remote hosts and cross-origin sign-in requests are rejected.
+
+GitHub approval and Copilot quota access are separate: GitHub's internal quota
+endpoint may reject tokens from independently registered apps. If authorization
+succeeds but usage is denied, the box shows the actual quota-access error rather
+than claiming that usage is available. Live access must be verified with your app.
+
+Existing environment tokens (`COPILOT_TOKEN`, then `GH_TOKEN`, then `GITHUB_TOKEN`)
+and an already-installed GitHub CLI remain optional fallback sources when there
+is no browser-authorized session token. Tokens must be accepted by the quota
+endpoint; not all personal access tokens have access. Disconnect does not remove
+environment or CLI credentials. Do not put secrets in source files or browser
+inputs. Restart the app after changing its environment.
+
+This uses GitHub's **internal** `https://api.github.com/copilot_internal/user`
+endpoint, which may change or reject a token even if other GitHub APIs work.
+It reads the premium-interaction quota, using GitHub's billing flag to label
+usage as **AI credits** or legacy **premium requests**, never converting
+requests into credits. The percentage is `100 - percent_remaining`; absolute
+usage is derived from the matching allowance and remaining quota when available.
+Uncapped organization accounts have no meaningful percentage; their reported
+consumed credits are shown instead, without inventing an allowance.
+Missing or unsupported quotas, authentication failures, and request errors are
+shown in the box. On failure, the last successful values are explicitly marked
+**STALE** with their timestamp. GitHub's own usage reporting can be delayed;
+this is not a per-request billing ledger.
+
 ## Power, energy, and history
 
 The power section shows measured **NVIDIA GPU board power**, summed across all
@@ -227,5 +316,5 @@ identified as CPU package/Tctl/Tdie sensors.
 Run focused collector and energy-accounting tests with:
 
 ```powershell
-python -m unittest -v test_dashboard
+python -m unittest -v test_dashboard test_github_auth
 ```
