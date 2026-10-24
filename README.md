@@ -5,6 +5,22 @@ power, clocks, Conda environment activity, and training processes.
 The nine panels share a compact **3 x 3 desktop grid**, including GitHub AI usage
 and both workload tables. Smaller windows switch to two columns, then one;
 workload tables scroll within their panels rather than adding a separate row.
+Turn on **Simplify:** for a compact chart strip, up to 960 pixels wide, below
+the unchanged header. The top bar keeps the same contents, sizing, and button
+positions in both modes, including when the page scrollbar disappears.
+Each hardware category sits beside a single-line history chart, followed by a
+GitHub AI usage row with its percentage, usage bar, and independent refresh
+interval. Current readings sit at the far right of every row: CPU, GPU, VRAM,
+RAM, and swap percentages, plus throughput, temperatures/fan duty, power/energy,
+and GitHub usage in their appropriate units. Charts are 36 pixels tall for more
+visible fluctuations. Chart axes, detailed summaries, per-thread loads, sensor lists, and
+both workload tables are omitted. Hover charts for exact readings and the
+GitHub percentage for its allowance, units, and reset date. Legends, chart modes,
+GitHub sign-in, and error indicators remain available; GitHub setup opens in a
+small overlay rather than stretching the dashboard. The chart strip targets at
+most a quarter of the full panel grid's area without scrolling on desktop windows.
+Switch it off to restore the full dashboard and its collapsed-panel settings;
+data collection continues in either mode.
 Use the minus button in any panel header to collapse it. Compact restore buttons
 appear beside **Updated** in the existing top status line; **All** restores every
 panel. They scroll horizontally when space is limited, without adding a grid box
@@ -21,7 +37,7 @@ Last update and monitor uptime share a compact line beneath the top controls.
 
 Display settings save automatically in this browser: GPU selection, refresh
 intervals, chart window and modes, legend visibility, process scope, sorting, and
-Top N, and collapsed panels. They restore after reload or restart when using the same browser profile,
+Top N, collapsed panels, and Simplify mode. They restore after reload or restart when using the same browser profile,
 hostname, and port. Search, environment filters, manual pins, pause state, and
 login tokens are not saved. If browser storage is unavailable or saved settings
 are invalid, the dashboard shows a warning and remains usable.
@@ -132,7 +148,15 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\test-launcher.ps1
 ```
 
 The dashboard polls every two seconds by default; the interval and pause
-controls are in the header. NVIDIA metrics require `nvidia-smi` on `PATH`.
+controls are in the header. Process details refresh separately on a ten-second
+target interval, so large process lists do not block hardware sampling. Workload
+panels show a warning while process details warm up or become stale.
+Requests time out after ten seconds and retry on the next poll. **DELAYED** means
+the latest hardware sample is over ten seconds old; **OFFLINE** indicates a
+request or sampling error. Returning to the tab triggers a refresh unless paused.
+Browser background throttling can slow display refreshes, but does not stop the
+Python sampler. System sleep still suspends monitoring.
+NVIDIA metrics require `nvidia-smi` on `PATH`.
 The header also shows **RAM cache**, an estimate of server memory occupied by
 retained telemetry and power history, including Python object overhead (not total
 app memory, browser disk cache, or the operating system cache). It updates with

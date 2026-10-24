@@ -9,6 +9,7 @@
   <style>
     :root { color-scheme:dark; --bg:#090d12; --panel:#10161d; --line:#24303b; --text:#dce6ed; --muted:#8b9aa8; --green:#b5f36b; --cyan:#6de5dc; --blue:#81a9ff; --orange:#ffb46a; --red:#ff7d87; font:12px Inter,ui-sans-serif,system-ui,"Segoe UI",sans-serif; }
     * { box-sizing:border-box; }
+    html { scrollbar-gutter:stable; }
     body { margin:0; min-width:340px; background:var(--bg); color:var(--text); }
     button,select,input { font:inherit; color:inherit; }
     button,select { cursor:pointer; }
@@ -31,6 +32,11 @@
     .control { min-height:29px; padding:4px 8px; border:1px solid var(--line); border-radius:5px; background:#131c25; font-size:11px; }
     .control:hover { border-color:#587083; }
     .control:disabled { cursor:wait; opacity:.5; }
+    .simplify-control { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+    .simplify-control input { appearance:none; width:28px; height:16px; margin:0; border:1px solid var(--line); border-radius:9px; background:#26313b; cursor:pointer; }
+    .simplify-control input::before { content:""; display:block; width:10px; height:10px; margin:2px; border-radius:50%; background:var(--muted); }
+    .simplify-control input:checked { background:#6de5dc33; border-color:var(--cyan); }
+    .simplify-control input:checked::before { background:var(--cyan); transform:translateX(12px); }
     #cache-size { color:var(--muted); font:10px ui-monospace,monospace; white-space:nowrap; }
     #cache-status { margin:-4px 0 10px; font-size:11px; }
     #settings-status { margin:0 0 10px; font-size:11px; }
@@ -44,6 +50,49 @@
     .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
     .panel { min-width:0; background:linear-gradient(140deg,#111922,#0e141b); border:1px solid var(--line); border-radius:7px; padding:10px; overflow:hidden; }
     .panel[hidden] { display:none; }
+    body.simplified .panel .control { min-height:22px; padding:1px 4px; font-size:10px; }
+    body.simplified .grid { max-width:960px; grid-template-columns:minmax(0,1fr); gap:3px; }
+    body.simplified .panel { position:relative; min-height:42px; padding:2px 5px; border-radius:4px; }
+    body.simplified .panel:not([hidden]) { display:grid; grid-template-columns:230px minmax(0,1fr) 150px; align-items:center; gap:0 8px; }
+    .compact-reading { display:none; }
+    body.simplified .compact-reading { display:block; grid-column:3; grid-row:1; text-align:right; white-space:pre-line; font:12px/16px ui-monospace,Consolas,monospace; }
+    body.simplified #io-current { font-size:10px; }
+    body.simplified .panel > .panel-head { min-height:20px; margin:0; padding-right:19px; gap:4px; flex-wrap:nowrap; }
+    body.simplified h2 { font-size:9px; letter-spacing:0; white-space:nowrap; }
+    body.simplified .panel-number, body.simplified .panel-title .device { display:none; }
+    body.simplified .panel-head .control { min-height:18px; padding:0 2px; font-size:9px; max-width:100px; }
+    body.simplified .collapse-panel { min-height:18px; width:16px; line-height:16px; }
+    body.simplified .legend { flex-wrap:nowrap; gap:4px; }
+    body.simplified .legend button { font-size:8px; white-space:nowrap; }
+    body.simplified .legend button::before { width:4px; height:4px; margin-right:2px; }
+    body.simplified .headline, body.simplified .stats,
+    body.simplified .core-label, body.simplified .cores,
+    body.simplified .allocation, body.simplified .sensor-list,
+    body.simplified .volumes, body.simplified #interfaces { display:none; }
+    body.simplified canvas { height:36px; min-width:0; }
+    body.simplified .twins { gap:8px; }
+    body.simplified .twins > div { display:flex; align-items:center; min-width:0; gap:4px; }
+    body.simplified .twins .chart-label { display:none; }
+    body.simplified .twins .legend { flex-shrink:0; flex-direction:column; align-items:flex-start; gap:0; }
+    body.simplified [data-panel="thermal"]:not([hidden]) { grid-template-columns:230px minmax(0,1fr) auto 150px; }
+    body.simplified #thermal-current { grid-column:4; }
+    body.simplified #thermal-chart { grid-column:2; grid-row:1; }
+    body.simplified #thermal-legend { grid-column:3; grid-row:1; }
+    body.simplified [data-panel="thermal"] > details,
+    body.simplified [data-panel="power"] > .note { display:none; }
+    body.simplified #gpu-note { grid-column:2; margin:0; }
+    .github-actions { margin-top:10px; }
+    body.simplified [data-panel="copilot"] { overflow:visible; }
+    body.simplified .copilot-body { display:flex; align-items:center; gap:6px; min-width:0; }
+    body.simplified #copilot-plan, body.simplified #copilot-unit { display:none; }
+    body.simplified #copilot-track { flex:2; min-width:20px; }
+    body.simplified .copilot-body > .note { margin:0; font-size:9px; }
+    body.simplified #copilot-status, body.simplified #github-auth-status,
+    body.simplified #github-tab-status { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    body.simplified .github-actions { margin:0; flex-wrap:nowrap; gap:4px; }
+    body.simplified .github-actions .control { min-height:18px; font-size:9px; white-space:nowrap; }
+    body.simplified #github-setup > summary { white-space:nowrap; cursor:pointer; }
+    body.simplified .github-setup-content, body.simplified #github-device { position:absolute; z-index:6; top:100%; right:0; width:min(360px,calc(100vw - 24px)); padding:10px; margin:3px 0 0; background:var(--panel); border:1px solid var(--line); border-radius:5px; }
     .panel[data-panel] > .panel-head { position:relative; padding-right:28px; }
     .collapse-panel { position:absolute; right:0; top:0; width:24px; min-height:29px; padding:0; background:transparent; border:1px solid var(--line); border-radius:4px; color:var(--muted); cursor:pointer; }
     .collapse-panel:hover { color:var(--text); border-color:#587083; }
@@ -129,6 +178,20 @@
     @media(max-width:1050px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } header { align-items:flex-start; } .controls { justify-content:flex-end; } }
     @media(max-width:650px) { .shell { padding:12px 10px; } header { flex-direction:column; } .controls { justify-content:flex-start; } .grid { grid-template-columns:1fr; } .table-tools { flex-wrap:wrap; } .panel-head { flex-wrap:wrap; } }
     @media(max-width:650px) { .header-tools { width:100%; } .header-tools > .controls, .header-status { justify-content:flex-start; } }
+    @media(max-width:650px) {
+      body.simplified .panel:not([hidden]) { grid-template-columns:110px minmax(0,1fr) 112px; }
+      body.simplified [data-panel="thermal"]:not([hidden]) { grid-template-columns:110px minmax(0,1fr) auto 112px; }
+      body.simplified .compact-reading { font-size:10px; }
+      body.simplified #io-current { font-size:8px; line-height:36px; }
+      body.simplified .twins { grid-template-columns:1fr; gap:0; }
+      body.simplified .panel > .panel-head { flex-wrap:wrap; gap:0 4px; }
+      body.simplified .panel-head h2 { font-size:8px; }
+      body.simplified .panel-head .control { font-size:8px; }
+      body.simplified .copilot-body { flex-wrap:wrap; gap:2px 5px; }
+      body.simplified #copilot-status, body.simplified #github-auth-status,
+      body.simplified #github-tab-status { flex-basis:60px; }
+      body.simplified .github-actions { flex-shrink:0; }
+    }
   </style>
 </head>
 <body>
@@ -138,6 +201,7 @@
       <div class="header-tools">
       <div class="controls">
         <div class="status-group"><span class="live" id="live">LIVE</span><div class="summary" id="summary"></div></div>
+        <label class="control simplify-control">Simplify: <input id="simplify" type="checkbox" role="switch"></label>
         <select class="control" id="gpu-select" aria-label="GPU device"><option value="0">GPU 0</option></select>
         <select class="control" id="window" aria-label="Chart time window"><option value="60">1 min history</option><option value="300" selected>5 min history</option><option value="600">10 min history</option></select>
         <select class="control" id="interval" aria-label="Display refresh interval"><option value="1000">1 s refresh</option><option value="2000" selected>2 s refresh</option><option value="5000">5 s refresh</option><option value="10000">10 s refresh</option></select>
@@ -154,7 +218,7 @@
     <div class="summary warnings" id="warnings" role="status" aria-live="polite"></div>
     <section class="grid" aria-label="Dashboard metrics and workloads">
       <article class="panel" data-panel="cpu" style="--accent:var(--green)">
-        <div class="panel-head"><div class="panel-title"><h2>01 / CPU</h2><span class="device" id="cpu-name">Detecting…</span></div><div class="legend" id="cpu-legend"></div></div>
+        <div class="panel-head"><div class="panel-title"><h2><span class="panel-number">01 / </span>CPU</h2><span class="device" id="cpu-name">Detecting…</span></div><div class="legend" id="cpu-legend"></div></div>
         <div class="headline"><span class="value" id="cpu-value">—<small>%</small></span><span class="secondary" id="cpu-clock">— GHz</span></div>
         <canvas id="cpu-chart" aria-label="CPU utilization history" tabindex="0"></canvas>
         <dl class="stats" id="cpu-stats"></dl>
@@ -162,7 +226,7 @@
         <div class="cores" id="cores"></div>
       </article>
       <article class="panel" data-panel="gpu" style="--accent:var(--cyan)">
-        <div class="panel-head"><div class="panel-title"><h2>02 / GPU</h2><span class="device" id="gpu-name">Detecting…</span></div><div class="legend" id="gpu-legend"></div></div>
+        <div class="panel-head"><div class="panel-title"><h2><span class="panel-number">02 / </span>GPU</h2><span class="device" id="gpu-name">Detecting…</span></div><div class="legend" id="gpu-legend"></div></div>
         <div class="headline"><span class="value" id="gpu-value">—<small>%</small></span><span class="secondary" id="gpu-state">—</span></div>
         <canvas id="gpu-chart" aria-label="GPU core and VRAM allocation history" tabindex="0"></canvas>
         <dl class="stats" id="gpu-stats"></dl>
@@ -170,14 +234,14 @@
         <p class="note" id="gpu-note" hidden></p>
       </article>
       <article class="panel" data-panel="memory" style="--accent:var(--blue)">
-        <div class="panel-head"><h2>03 / Memory</h2><div class="legend" id="memory-legend"></div></div>
+        <div class="panel-head"><h2><span class="panel-number">03 / </span>Memory</h2><div class="legend" id="memory-legend"></div></div>
         <div class="headline"><span class="value" id="memory-value">—<small> GiB</small></span><span class="secondary" id="memory-total">/ — GiB</span></div>
         <canvas id="memory-chart" aria-label="Physical RAM and swap usage history" tabindex="0"></canvas>
         <dl class="stats" id="memory-stats"></dl>
         <div class="allocation"><div class="chart-label"><span>RAM USED</span><span id="memory-percent">—%</span></div><div class="track"><i id="memory-meter"></i></div></div>
       </article>
       <article class="panel" data-panel="io">
-        <div class="panel-head"><h2>04 / Disk &amp; network</h2></div>
+        <div class="panel-head"><h2><span class="panel-number">04 / </span>Disk &amp; network</h2></div>
         <div class="twins">
           <div><div class="chart-label"><span>DISK · MiB/s</span></div><div class="legend" id="disk-legend"></div><canvas id="disk-chart" aria-label="Disk read and write throughput history" tabindex="0"></canvas></div>
           <div><div class="chart-label"><span>NETWORK · MiB/s</span></div><div class="legend" id="network-legend"></div><canvas id="network-chart" aria-label="Network receive and send throughput history" tabindex="0"></canvas></div>
@@ -187,7 +251,7 @@
         <div class="volumes" id="volumes"></div>
       </article>
       <article class="panel" data-panel="thermal">
-        <div class="panel-head"><h2>05 / Temperature &amp; fans</h2><select class="control" id="thermal-mode" aria-label="Cooling chart metric"><option value="temperature">Temperature °C</option><option value="fan">GPU fan %</option></select></div>
+        <div class="panel-head"><h2><span class="panel-number">05 / </span>Temperature &amp; fans</h2><select class="control" id="thermal-mode" aria-label="Cooling chart metric"><option value="temperature">Temperature °C</option><option value="fan">GPU fan %</option></select></div>
         <div class="legend" id="thermal-legend"></div>
         <canvas id="thermal-chart" aria-label="CPU and selected GPU temperature history in Celsius" tabindex="0"></canvas>
         <dl class="stats" id="thermal-stats"></dl>
@@ -195,25 +259,27 @@
         <details class="note"><summary id="sensor-summary">Checking sensors…</summary><p id="sensor-note"></p></details>
       </article>
       <article class="panel" data-panel="power">
-        <div class="panel-head"><h2>06 / Power &amp; energy</h2><select class="control" id="power-mode" aria-label="Power chart metric"><option value="watts">GPU watts</option><option value="energy_wh">Session Wh</option></select></div>
+        <div class="panel-head"><h2 title="NVIDIA GPUs only; not whole-PC power. Energy resets on restart or Clear cache."><span class="panel-number">06 / </span>Power &amp; energy</h2><select class="control" id="power-mode" aria-label="Power chart metric"><option value="watts">GPU watts</option><option value="energy_wh">Session Wh</option></select></div>
         <div class="headline"><span class="value" id="gpu-power-value">—<small> W</small></span><span class="secondary" id="gpu-energy-value">— Wh</span></div>
         <div class="energy-chart"><canvas id="power-chart" aria-label="GPU power or cumulative energy history" tabindex="0"></canvas></div>
         <dl class="stats" id="power-stats"></dl>
         <p class="note" title="Not whole-PC power. Energy resets on restart or Clear cache; history is RAM-only.">NVIDIA GPUs only · energy since reset</p>
       </article>
       <article class="panel" data-panel="copilot" style="--accent:var(--cyan)" aria-label="GitHub Copilot usage">
-        <div class="panel-head"><h2>07 / GitHub AI usage</h2><select class="control" id="copilot-interval" aria-label="GitHub usage refresh interval" title="Independent of hardware refresh and pause. GitHub reporting may lag."><option value="60000" selected>1 min refresh</option><option value="120000">2 min refresh</option><option value="300000">5 min refresh</option></select></div>
+        <div class="panel-head"><h2><span class="panel-number">07 / </span>GitHub AI usage</h2><select class="control" id="copilot-interval" aria-label="GitHub usage refresh interval" title="Independent of hardware refresh and pause. GitHub reporting may lag."><option value="60000" selected>1 min refresh</option><option value="120000">2 min refresh</option><option value="300000">5 min refresh</option></select></div>
+        <div class="copilot-body">
         <p class="device" id="copilot-plan">Copilot</p>
         <div class="headline"><span class="value" id="copilot-value">—</span><span class="secondary" id="copilot-unit">used</span></div>
         <div class="track" id="copilot-track" hidden><i id="copilot-meter" style="--tone:var(--cyan)"></i></div>
         <dl class="stats" id="copilot-stats"></dl>
         <p class="note" id="copilot-status" role="status" aria-live="polite">Checking GitHub usage...</p>
-        <div class="controls" style="margin-top:10px">
+        <div class="controls github-actions">
           <button class="control" id="github-signin">Sign in with GitHub</button>
           <button class="control" id="github-disconnect" hidden>Disconnect</button>
         </div>
         <details id="github-setup" class="note">
           <summary>Sign-in setup</summary>
+          <div class="github-setup-content">
           <ol>
             <li><a href="https://github.com/settings/applications/new" target="_blank" rel="noopener noreferrer">Register an OAuth app</a> named Telemetry.</li>
             <li>Homepage and callback: <code>http://127.0.0.1:6767</code>.</li>
@@ -223,6 +289,7 @@
           <label for="github-client-id">Public OAuth Client ID</label>
           <input class="control" id="github-client-id" type="text" autocomplete="off" spellcheck="false" maxlength="100" style="width:100%;margin-top:5px">
           <p>Public ID saved in this browser. Tokens last until disconnect or restart. Copilot access may be restricted.</p>
+          </div>
         </details>
         <p class="note" id="github-auth-status" role="status" aria-live="polite"></p>
         <div id="github-device" class="note" hidden>
@@ -232,6 +299,7 @@
         </div>
         <p class="note" id="github-tab-status" role="status" hidden></p>
         <a class="note" href="https://github.com/settings/copilot" target="_blank" rel="noopener noreferrer" title="View usage on GitHub">GitHub</a>
+        </div>
       </article>
       <article class="panel workload-panel" data-panel="environments" aria-label="Conda environments">
         <div class="panel-head"><h2>08 / Conda environments</h2><button class="control" id="clear-env">All environments</button></div>
@@ -243,6 +311,7 @@
         <p id="process-limit-error" class="note status-error" role="status" hidden>Enter a positive whole number.</p>
         <div class="scroll"><table><thead><tr><th>Process / PID</th><th>Environment</th><th><button data-sort="cpu">CPU ↕</button></th><th><button data-sort="gpu_utilization">GPU Σ ↕</button></th><th><button data-sort="memory_mb">RAM ↕</button></th><th><button data-sort="gpu_memory">VRAM ↕</button></th><th>Threads</th><th>Age</th></tr></thead><tbody id="process-table"></tbody></table></div>
         <p class="note" title="Shift+F10 also opens the menu. Pinned processes bypass filters and Top N; pins clear on reload or process exit.">Right-click to pin</p>
+        <p class="note" id="process-sampling-note" role="status" hidden></p>
         <p class="note" id="attribution-note" hidden></p>
       </article>
     </section>
@@ -257,6 +326,28 @@
     const $ = id => document.getElementById(id);
     const colors = {cpu:"#b5f36b",gpu:"#6de5dc",ram:"#81a9ff",vram:"#ffb46a",read:"#6de5dc",write:"#ffb46a",received:"#81a9ff",sent:"#b5f36b",cpu_temperature:"#b5f36b",temperature:"#ffb46a",swap:"#ffb46a",fan:"#6de5dc"};
     let latest = null, paused = false, busy = false, timer, selectedEnv = null, sort = "gpu_utilization", descending = true, topN = 50;
+    let telemetryError = null;
+    async function fetchJson(url, options={}) {
+      const controller=new AbortController();
+      const timeout=setTimeout(()=>controller.abort(),10000);
+      try {
+        const response=await fetch(url,{...options,cache:"no-store",signal:controller.signal});
+        const data=await response.json();
+        if(!response.ok) throw new Error(data.error||`HTTP ${response.status}`);
+        return data;
+      } catch(error) {
+        if(error.name==="AbortError") throw new Error("Request timed out; retrying");
+        throw error;
+      } finally {clearTimeout(timeout);}
+    }
+    function updateLiveStatus() {
+      const age=latest?Math.max(0,Date.now()/1000-latest.timestamp):0;
+      const delayed=Boolean(latest&&age>10);
+      $("live").textContent=paused?"PAUSED":telemetryError?"OFFLINE":delayed?"DELAYED":latest?"LIVE":"CONNECTING";
+      $("live").classList.toggle("status-error",!paused&&Boolean(telemetryError||delayed));
+      if(telemetryError) $("last-update").textContent=`Offline · ${telemetryError} · values stale`;
+      else if(latest) $("last-update").textContent=`Updated ${new Date(latest.timestamp*1000).toLocaleTimeString()}${!paused&&delayed?` · sample delayed ${Math.floor(age)}s`:""}`;
+    }
     const hidden = new Set();
     const chartState = new Map();
     const manualPins = new Set();
@@ -282,14 +373,27 @@
         $("collapsed-list").querySelector(`[data-restore-panel="${panel.dataset.panel}"]`).focus({preventScroll:true});
       });
       panel.querySelector(".panel-head").append(button);
+      if(panel.querySelector("canvas")||panel.dataset.panel==="copilot") {
+        const reading=document.createElement("div");
+        reading.className="compact-reading";
+        reading.id=`${panel.dataset.panel}-current`;
+        reading.setAttribute("aria-label",`Current ${name} readings`);
+        reading.textContent="—";
+        panel.append(reading);
+      }
+    }
+    function availablePanels() {
+      return $("simplify").checked?panels.filter(panel=>panel.querySelector("canvas")||panel.dataset.panel==="copilot"):panels;
     }
     function updateCollapsedPanels() {
+      document.body.classList.toggle("simplified",$("simplify").checked);
+      const available=availablePanels();
       const list=$("collapsed-list");
       list.replaceChildren();
       for(const panel of panels) {
         const key=panel.dataset.panel;
-        panel.hidden=collapsedPanels.has(key);
-        if(!panel.hidden) continue;
+        panel.hidden=!available.includes(panel)||collapsedPanels.has(key);
+        if(!available.includes(panel)||!collapsedPanels.has(key)) continue;
         const button=document.createElement("button");
         button.type="button";
         button.dataset.restorePanel=key;
@@ -304,14 +408,19 @@
         });
         list.append(button);
       }
-      $("collapsed-panels").hidden=collapsedPanels.size===0;
+      $("collapsed-panels").hidden=list.childElementCount===0;
       $("tooltip").hidden=true;
       closeProcessMenu();
       drawCharts();
     }
+    $("simplify").addEventListener("change",()=>{
+      updateCollapsedPanels();
+      savePreferences();
+    });
     $("restore-all-panels").addEventListener("click",()=>{
-      const first=panels.find(panel=>collapsedPanels.has(panel.dataset.panel));
-      collapsedPanels.clear();
+      const available=availablePanels();
+      const first=available.find(panel=>collapsedPanels.has(panel.dataset.panel));
+      for(const panel of available) collapsedPanels.delete(panel.dataset.panel);
       updateCollapsedPanels();
       savePreferences();
       first?.querySelector(".collapse-panel").focus({preventScroll:true});
@@ -351,6 +460,7 @@
           ||!Number.isSafeInteger(saved.topN)||saved.topN<1
           ||!["cpu","gpu_utilization","memory_mb","gpu_memory"].includes(saved.sort)
           ||typeof saved.descending!=="boolean"
+          ||saved.simplified!==undefined&&typeof saved.simplified!=="boolean"
           ||!Array.isArray(saved.hiddenSeries)||!saved.hiddenSeries.every(key=>series.has(key))
           ||saved.collapsedPanels!==undefined&&(!Array.isArray(saved.collapsedPanels)||!saved.collapsedPanels.every(key=>panels.some(panel=>panel.dataset.panel===key)))) {
           throw new TypeError("Invalid saved dashboard settings");
@@ -361,6 +471,7 @@
         sort=saved.sort; descending=saved.descending;
         for(const key of saved.hiddenSeries) hidden.add(key);
         for(const key of saved.collapsedPanels||[]) collapsedPanels.add(key);
+        $("simplify").checked=saved.simplified===true;
       } catch(error) {
         if(!(error instanceof SyntaxError)&&!(error instanceof TypeError)&&!(error instanceof DOMException)) throw error;
         settingsError("Settings could not be loaded; using defaults.");
@@ -371,7 +482,7 @@
         localStorage.setItem(preferencesKey,JSON.stringify({
           version:1, controls:Object.fromEntries(preferenceControls.map(id=>[id,$(id).value])),
           gpuIndex:preferredGpu, topN, sort, descending, hiddenSeries:[...hidden],
-          collapsedPanels:[...collapsedPanels]
+          collapsedPanels:[...collapsedPanels], simplified:$("simplify").checked
         }));
         $("settings-status").hidden=true;
       } catch(error) {
@@ -400,12 +511,13 @@
       const visible=lines.filter(line=>!hidden.has(`${legendId}:${line[0]}`));
       const values=data.flatMap(item=>visible.map(line=>item[line[0]])).filter(Number.isFinite);
       const max=maximum??Math.max(1,...values)*1.12;
-      const left=unit==="%"?29:42, right=5, top=7, bottom=16, w=rect.width, h=rect.height, cw=w-left-right, ch=h-top-bottom;
+      const compact=$("simplify").checked;
+      const left=compact?3:unit==="%"?29:42, right=5, top=compact?3:7, bottom=compact?3:16, w=rect.width, h=rect.height, cw=w-left-right, ch=h-top-bottom;
       canvas.width=Math.round(w*ratio); canvas.height=Math.round(h*ratio);
       const ctx=canvas.getContext("2d"); ctx.scale(ratio,ratio); ctx.font="9px ui-monospace, monospace"; ctx.textBaseline="middle";
       [0,.5,1].forEach(f=>{
         const y=top+ch*(1-f); ctx.strokeStyle="#24303b"; ctx.lineWidth=.7; ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(w-right,y); ctx.stroke();
-        ctx.fillStyle="#8293a3"; ctx.fillText(fmt(max*f,max<10&&unit!=="%"?1:0),0,y);
+        if(!compact) {ctx.fillStyle="#8293a3"; ctx.fillText(fmt(max*f,max<10&&unit!=="%"?1:0),0,y);}
       });
       if (!data.length) { chartState.delete(id); return; }
       const start=data[0].timestamp, end=data.at(-1).timestamp, span=Math.max(end-start,1);
@@ -421,13 +533,22 @@
         ctx.strokeStyle=color||colors[key]; ctx.lineWidth=1.5; ctx.stroke();
         if (last) {ctx.beginPath();ctx.arc(...last,2,0,Math.PI*2);ctx.fillStyle=color||colors[key];ctx.fill();}
       });
-      ctx.fillStyle="#8293a3"; ctx.textBaseline="bottom";
-      ctx.fillText(new Date(start*1000).toLocaleTimeString([], {hour12:false}),left,h);
-      ctx.textAlign="right"; ctx.fillText(new Date(end*1000).toLocaleTimeString([], {hour12:false}),w-right,h);
+      if(!compact) {
+        ctx.fillStyle="#8293a3"; ctx.textBaseline="bottom";
+        ctx.fillText(new Date(start*1000).toLocaleTimeString([], {hour12:false}),left,h);
+        ctx.textAlign="right"; ctx.fillText(new Date(end*1000).toLocaleTimeString([], {hour12:false}),w-right,h);
+      }
       chartState.set(id,{data,visible,unit,left,cw,start,span});
     }
     function drawCharts() {
       if (!latest) return;
+      const s=latest.system, g=gpu(), d=s.disk, n=s.network;
+      $("cpu-current").textContent=percent(s.cpu_percent);
+      $("gpu-current").textContent=g?`GPU ${percent(g.utilization)}\nVRAM ${percent(g.memory_used!=null&&g.memory_total?g.memory_used/g.memory_total*100:null)}`:"Unavailable";
+      $("memory-current").textContent=`RAM ${percent(s.memory_percent)}${s.swap_total?`\nSwap ${percent(s.swap_used/s.swap_total*100)}`:""}`;
+      $("io-current").textContent=`R/W ${fmt(d.read/1024**2)} / ${fmt(d.write/1024**2)} MiB/s\n↓/↑ ${fmt(n.received/1024**2)} / ${fmt(n.sent/1024**2)} MiB/s`;
+      $("thermal-current").textContent=$("thermal-mode").value==="fan"?`GPU ${percent(g?.fan_speed)}`:`CPU ${fmt(s.cpu_temperature)} °C\nGPU ${fmt(g?.temperature)} °C`;
+      $("power-current").textContent=$("power-mode").value==="watts"?`${fmt(latest.power.gpu_watts)} W`:`${fmt(latest.power.gpu_energy_wh,3)} Wh`;
       const data=samples();
       chart("cpu-chart",data,legends["cpu-legend"],"%",100,"cpu-legend");
       chart("gpu-chart",data,legends["gpu-legend"],"%",100,"gpu-legend");
@@ -498,7 +619,7 @@
       processes.sort(compare); telemetry.sort(compare); pinned.sort(compare);
       const workloads=processes.slice(0,topN), shown=[...telemetry,...pinned,...workloads];
       $("process-count").textContent=`/ ${shown.length} shown`;
-      $("process-count").title=`Top ${workloads.length} of ${processes.length} matches; ${telemetry.length} telemetry and ${pinned.length} pinned`;
+      $("process-count").title=`Top ${workloads.length} of ${processes.length} matches; ${telemetry.length} telemetry and ${pinned.length} pinned${latest.process_sampling?.updated?` · sampled ${new Date(latest.process_sampling.updated*1000).toLocaleTimeString()}`:""}`;
       $("process-table").innerHTML=shown.length?shown.map(p=>{
         const automatic=p.environment==="telemetry", isPinned=automatic||manualPins.has(processKey(p));
         return `<tr class="${isPinned?"pinned-process":""}" data-pid="${p.pid}" data-process-key="${esc(processKey(p)||"")}" tabindex="0" aria-haspopup="menu"><td title="${esc(p.name)} · ${esc(p.status)}">${esc(p.name)} <span class="muted">${p.pid}</span>${isPinned?`<span class="pinned-label" title="${automatic?"Telemetry is always included":"Right-click to unpin"}">${automatic?"auto":"pinned"}</span>`:""}</td><td><span class="pill">${esc(p.environment)}</span></td><td>${fmt(p.cpu)}%</td><td>${p.gpu_utilization?percent(p.gpu_utilization):"—"}</td><td>${gib(p.memory_mb)}</td><td>${p.gpu_memory?gib(p.gpu_memory):"—"}</td><td>${fmt(p.threads,0)}</td><td>${duration(p.elapsed)}</td></tr>`;
@@ -565,20 +686,22 @@
       stats("power-stats",[["Session energy",`${fmt(p.gpu_energy_wh/1000,6)} kWh`],["Measured time",duration(p.measured_seconds)],["Recent peak",`${fmt(watts.length?Math.max(...watts):null)} W`]]);
       $("attribution-note").textContent=data.gpu_attribution_error||"";
       $("attribution-note").hidden=!data.gpu_attribution_error;
-      $("last-update").textContent=`Updated ${new Date(data.timestamp*1000).toLocaleTimeString()}`;
+      const processSampling=data.process_sampling;
+      $("process-sampling-note").textContent=processSampling?.error||"";
+      $("process-sampling-note").hidden=!processSampling?.error;
       $("uptime").textContent=`Monitor up ${duration(s.uptime)}`;
-      $("live").classList.remove("status-error"); $("live").textContent=paused?"PAUSED":"LIVE";
+      updateLiveStatus();
       renderWorkloads(); drawCharts();
     }
     async function refresh(force=false) {
       if(busy||paused&&!force) return; busy=true;
       try {
-        const response=await fetch("/api/stats",{cache:"no-store"}), data=await response.json();
-        if(!response.ok) throw new Error(data.error||`HTTP ${response.status}`);
+        const data=await fetchJson("/api/stats");
+        telemetryError=null;
         render(data); updateCache(data.cache);
       } catch(error) {
-        $("live").textContent="OFFLINE"; $("live").classList.add("status-error");
-        $("last-update").textContent=`Offline · ${error.message} · values stale`;
+        telemetryError=error.message;
+        updateLiveStatus();
       } finally {busy=false;}
     }
     function updateCache(cache) {
@@ -596,9 +719,7 @@
       const status=$("cache-status");
       status.hidden=false; status.classList.remove("status-error"); status.textContent="Clearing RAM cache...";
       try {
-        const response=await fetch("/api/cache/clear",{method:"POST",headers:{"X-Telemetry-Request":"clear-cache"},cache:"no-store"});
-        const data=await response.json();
-        if(!response.ok) throw new Error(data.error||`HTTP ${response.status}`);
+        const data=await fetchJson("/api/cache/clear",{method:"POST",headers:{"X-Telemetry-Request":"clear-cache"}});
         if(data.system) render(data);
         $("tooltip").hidden=true;
         updateCache(data.cache);
@@ -610,7 +731,10 @@
     });
     function schedule(){clearInterval(timer);timer=setInterval(()=>refresh(),Number($("interval").value));}
     $("interval").addEventListener("change",schedule);
-    $("pause").addEventListener("click",()=>{paused=!paused;$("pause").textContent=paused?"▶ Resume":"Ⅱ Pause";$("live").textContent=paused?"PAUSED":"LIVE";if(!paused)refresh();});
+    $("pause").addEventListener("click",()=>{paused=!paused;$("pause").textContent=paused?"▶ Resume":"Ⅱ Pause";updateLiveStatus();if(!paused)refresh();});
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden){updateLiveStatus();refresh();}});
+    window.addEventListener("focus",()=>{updateLiveStatus();refresh();});
+    setInterval(updateLiveStatus,1000);
     $("refresh").addEventListener("click",()=>refresh(true));
     ["window","power-mode"].forEach(id=>$(id).addEventListener("change",drawCharts));
     $("thermal-mode").addEventListener("change",()=>{legend("thermal-legend",$("thermal-mode").value==="fan"?[["fan","GPU fan duty"]]:legends["thermal-legend"]);drawCharts();});
@@ -660,6 +784,7 @@
     let authTimer, authBusy=false, authState=null, githubLoginTab=null;
     function githubTabNotice(message) {
       $("github-tab-status").textContent=message;
+      $("github-tab-status").title=message;
       $("github-tab-status").hidden=!message;
     }
     function closeGitHubLoginTab() {
@@ -711,14 +836,18 @@
         $("copilot-track").hidden=usage.used_percent==null;
         meter("copilot-meter",usage.used_percent);
         const reset=usage.reset_at?new Date(usage.reset_at*1000).toLocaleString():usage.reset_date||"Not reported";
+        $("copilot-value").title=`${usage.unit} used · ${usage.used==null?"Not reported":fmt(usage.used,2)} / ${usage.unlimited?"Uncapped":usage.total==null?"Not reported":fmt(usage.total,2)} · Resets ${reset}`;
         stats("copilot-stats",[["Used",usage.used==null?"Not reported":fmt(usage.used,2)],["Allowance",usage.unlimited?"No individual cap":usage.total==null?"Not reported":fmt(usage.total,2)],["Resets",reset]]);
       } else {
         $("copilot-plan").textContent="Copilot";
         $("copilot-value").textContent="—";
+        $("copilot-value").title="";
         $("copilot-unit").textContent="used";
         $("copilot-track").hidden=true;
         stats("copilot-stats",[]);
       }
+      $("copilot-current").textContent=$("copilot-value").textContent;
+      $("copilot-current").title=$("copilot-value").title;
       const sampled=data.updated?`Updated ${new Date(data.updated*1000).toLocaleTimeString()}`:"";
       const error=data.error==="Use Sign in with GitHub in this box, or set COPILOT_TOKEN (optional CLI: gh auth login)"?"Sign in to view usage.":data.error;
       $("copilot-status").classList.toggle("status-error",Boolean(data.error));
@@ -739,6 +868,7 @@
         if(generation===copilotGeneration) {
           $("copilot-status").classList.add("status-error");
           $("copilot-status").textContent=`GitHub unavailable · ${error.message} · values stale`;
+          $("copilot-status").title=$("copilot-status").textContent;
         }
       } finally {
         copilotBusy=false;
@@ -794,6 +924,7 @@
         $("github-auth-status").hidden=false;
         $("github-auth-status").classList.add("status-error");
         $("github-auth-status").textContent=`GitHub sign-in unavailable: ${error.message}`;
+        $("github-auth-status").title=$("github-auth-status").textContent;
       } finally {
         authBusy=false; $("github-signin").disabled=false; $("github-disconnect").disabled=false;
         clearTimeout(authTimer);
@@ -807,6 +938,7 @@
         $("github-auth-status").hidden=false;
         $("github-auth-status").classList.add("status-error");
         $("github-auth-status").textContent="Enter your OAuth app's public Client ID.";
+        $("github-auth-status").title=$("github-auth-status").textContent;
         $("github-client-id").focus(); return;
       }
       try {localStorage.setItem("telemetry.githubClientId",clientId);}

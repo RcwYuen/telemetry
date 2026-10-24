@@ -490,6 +490,81 @@ ConvertTo-Json -InputObject $result -Compress -Depth 4
         self._thread.join(timeout=1)
 
 
+class ProcessMonitor:
+    INTERVAL = 10
+
+    def __init__(self, envs: list[tuple[str, str]], cpu_count: int) -> None:
+        self.envs = envs
+        self.cpu_count = cpu_count
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._data: dict[str, Any] = {
+            "processes": [], "updated": None, "error": "Process details are warming up",
+        }
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def _read(self) -> list[dict[str, Any]]:
+        processes = []
+        for process in psutil.process_iter():
+            try:
+                with process.oneshot():
+                    info = process.as_dict(attrs=[
+                        "pid", "name", "exe", "memory_info", "num_threads",
+                        "status", "create_time",
+                    ])
+                    if info["pid"] == 0:
+                        continue
+                    executable = info.get("exe")
+                    if not executable:
+                        try:
+                            command_line = process.cmdline()
+                        except (psutil.AccessDenied, OSError):
+                            command_line = []
+                        executable = command_line[0] if command_line else None
+                    cpu = (process.cpu_percent(interval=None) or 0) / self.cpu_count
+                rss = info.get("memory_info")
+                processes.append({
+                    "pid": info["pid"],
+                    "name": info.get("name") or Path(executable or "process").name,
+                    "environment": environment_for_path(executable, self.envs),
+                    "cpu": round(cpu, 1),
+                    "memory_mb": round(rss.rss / 1024**2, 1) if rss else 0,
+                    "threads": info.get("num_threads"),
+                    "status": info.get("status"),
+                    "create_time": info.get("create_time"),
+                })
+            except (psutil.Error, OSError):
+                continue
+        return processes
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            started = time.monotonic()
+            try:
+                processes = self._read()
+                with self._lock:
+                    self._data = {"processes": processes, "updated": time.time(), "error": None}
+            except (psutil.Error, OSError) as error:
+                print(f"Process sampling failed: {error}", flush=True)
+                with self._lock:
+                    self._data = {**self._data, "error": f"Process sampling failed: {error}"}
+            self._stop.wait(max(0, self.INTERVAL - (time.monotonic() - started)))
+
+    def snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            data = {**self._data, "processes": [dict(item) for item in self._data["processes"]]}
+        if self._thread.ident is not None and not self._thread.is_alive() and not self._stop.is_set():
+            data["error"] = "Process sampler stopped; restart the dashboard"
+        elif data["updated"] is not None and time.time() - data["updated"] > 30 and not data["error"]:
+            data["error"] = "Process details delayed; displayed workloads are stale"
+        return data
+
+    def close(self) -> None:
+        self._stop.set()
+        self._thread.join(timeout=15)
+
+
 class StatsCollector:
     def __init__(self) -> None:
         self.conda_envs = discover_conda_envs()
@@ -501,16 +576,12 @@ class StatsCollector:
         self.volumes: list[dict[str, Any]] = []
         self.volumes_updated = 0.0
         self.cpu_count = psutil.cpu_count(logical=True) or 1
+        self.process_monitor = ProcessMonitor(self.conda_envs, self.cpu_count)
         self.started = time.time()
         self.previous_network = psutil.net_io_counters()
         self.previous_disk = psutil.disk_io_counters()
         self.previous_io_time = time.monotonic()
         psutil.cpu_percent(interval=None)
-        for process in psutil.process_iter():
-            try:
-                process.cpu_percent(interval=None)
-            except (psutil.Error, OSError):
-                continue
 
     def collect(self) -> dict[str, Any]:
         cpu_percent = psutil.cpu_percent(interval=None)
@@ -523,67 +594,27 @@ class StatsCollector:
         environments: dict[str, dict[str, Any]] = {}
         conda_pids = []
 
-        for process in psutil.process_iter(
-            [
-                "pid",
-                "name",
-                "exe",
-                "cmdline",
-                "memory_info",
-                "num_threads",
-                "status",
-                "create_time",
-            ]
-        ):
-            try:
-                info = process.info
-                if info["pid"] == 0:
-                    continue
-                executable = info.get("exe")
-                if not executable:
-                    command_line = info.get("cmdline") or []
-                    executable = command_line[0] if command_line else None
-                env_name = environment_for_path(executable, self.conda_envs)
-                cpu = (process.cpu_percent(interval=None) or 0) / self.cpu_count
-                rss = info.get("memory_info")
-                memory_mb = rss.rss / (1024 * 1024) if rss else 0
-                if env_name != "system":
-                    conda_pids.append(info["pid"])
-                name = info.get("name") or Path(executable or "process").name
-                item = {
-                    "pid": info["pid"],
-                    "name": name,
-                    "environment": env_name,
-                    "cpu": round(cpu, 1),
-                    "memory_mb": round(memory_mb, 1),
-                    "gpu_memory": round(gpu_process_memory.get(info["pid"], 0), 1),
-                    "gpu_utilization": 0.0,
-                    "threads": info.get("num_threads"),
-                    "status": info.get("status"),
-                    "create_time": info.get("create_time"),
-                    "elapsed": max(0, time.time() - info["create_time"])
-                    if info.get("create_time")
-                    else None,
-                }
-                processes.append(item)
-                group = environments.setdefault(
-                    env_name,
-                    {
-                        "name": env_name,
-                        "cpu": 0,
-                        "memory_mb": 0,
-                        "gpu_memory": 0,
-                        "gpu_utilization": 0,
-                        "process_count": 0,
-                        "processes": [],
-                    },
-                )
-                group["cpu"] += cpu
-                group["memory_mb"] += memory_mb
-                group["process_count"] += 1
-                group["processes"].append(item)
-            except (psutil.Error, OSError):
-                continue
+        process_data = self.process_monitor.snapshot()
+        for info in process_data["processes"]:
+            env_name = info["environment"]
+            if env_name != "system":
+                conda_pids.append(info["pid"])
+            item = {
+                **info,
+                "gpu_memory": round(gpu_process_memory.get(info["pid"], 0), 1),
+                "gpu_utilization": 0.0,
+                "elapsed": max(0, time.time() - info["create_time"])
+                if info.get("create_time") else None,
+            }
+            processes.append(item)
+            group = environments.setdefault(env_name, {
+                "name": env_name, "cpu": 0, "memory_mb": 0, "gpu_memory": 0,
+                "gpu_utilization": 0, "process_count": 0, "processes": [],
+            })
+            group["cpu"] += item["cpu"]
+            group["memory_mb"] += item["memory_mb"]
+            group["process_count"] += 1
+            group["processes"].append(item)
 
         self.gpu_monitor.set_pids(conda_pids)
         windows_gpu_metrics = self.gpu_monitor.snapshot()
@@ -767,6 +798,10 @@ class StatsCollector:
             "gpus": gpus,
             "gpu_error": gpu_error,
             "gpu_attribution_error": self.gpu_monitor.error,
+            "process_sampling": {
+                "updated": process_data["updated"], "error": process_data["error"],
+                "interval_seconds": ProcessMonitor.INTERVAL,
+            },
             "processes": sorted(
                 processes,
                 key=lambda item: (
@@ -1106,6 +1141,8 @@ class TelemetryService:
 
     def snapshot(self) -> tuple[dict[str, Any], int]:
         with self._lock:
+            if self._thread.ident is not None and not self._thread.is_alive() and not self._stop.is_set():
+                return {"error": "Telemetry sampler stopped; restart the dashboard"}, 503
             if self._error:
                 return {"error": f"Telemetry sampling failed: {self._error}"}, 503
             if self._latest is None:
@@ -1117,6 +1154,7 @@ class TelemetryService:
         self._thread.join(timeout=15)
         self.collector.gpu_monitor.close()
         self.collector.hardware_monitor.close()
+        self.collector.process_monitor.close()
 
 
 def make_handler(service: TelemetryService) -> type[BaseHTTPRequestHandler]:
@@ -1259,6 +1297,7 @@ def main() -> None:
     except OSError as error:
         collector.gpu_monitor.close()
         collector.hardware_monitor.close()
+        collector.process_monitor.close()
         parser.exit(
             1, f"Unable to start dashboard on {args.host}:{args.port}: {error}\n"
         )

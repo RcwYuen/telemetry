@@ -4,14 +4,125 @@ import subprocess
 import threading
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from dashboard import (
-    CopilotUsage, PowerHistory, TelemetryServer, TelemetryService, counter_rate,
+    CopilotUsage, PowerHistory, ProcessMonitor, StatsCollector, TelemetryServer, TelemetryService, counter_rate,
     make_handler, parse_copilot_usage, parse_sensors, read_copilot_usage, read_gpus,
 )
+
+import psutil
+
+
+class ProcessMonitorTests(unittest.TestCase):
+    def setUp(self):
+        self.monitor = ProcessMonitor.__new__(ProcessMonitor)
+        self.monitor.envs = []
+        self.monitor.cpu_count = 4
+        self.monitor._lock = threading.Lock()
+        self.monitor._stop = threading.Event()
+        self.monitor._thread = Mock(ident=None)
+        self.monitor._data = {
+            "processes": [], "updated": None, "error": "Process details are warming up",
+        }
+
+    def process(self, pid=123, exe=r"C:\Python\python.exe"):
+        process = Mock()
+        process.oneshot.return_value = MagicMock()
+        process.as_dict.return_value = {
+            "pid": pid, "name": "python.exe", "exe": exe,
+            "memory_info": Mock(rss=1024**2), "num_threads": 8,
+            "status": "running", "create_time": 100,
+        }
+        process.cpu_percent.return_value = 40
+        return process
+
+    @patch("dashboard.psutil.process_iter")
+    def test_normalizes_cpu_keeps_details_and_avoids_unnecessary_command_line(self, iterator):
+        process = self.process()
+        iterator.return_value = [process]
+        result = self.monitor._read()
+        self.assertEqual(result[0]["cpu"], 10)
+        self.assertEqual(result[0]["threads"], 8)
+        self.assertEqual(result[0]["status"], "running")
+        self.assertEqual(result[0]["memory_mb"], 1)
+        self.assertEqual(result[0]["create_time"], 100)
+        process.cmdline.assert_not_called()
+        process.oneshot.assert_called_once()
+
+    @patch("dashboard.psutil.process_iter")
+    def test_missing_executable_uses_command_line_and_access_denied_keeps_process(self, iterator):
+        process = self.process(exe=None)
+        process.cmdline.return_value = [r"C:\Python\python.exe", "train.py"]
+        iterator.return_value = [process]
+        self.assertEqual(self.monitor._read()[0]["environment"], "system")
+        process.cmdline.side_effect = psutil.AccessDenied(123)
+        self.assertEqual(len(self.monitor._read()), 1)
+
+    @patch("dashboard.psutil.process_iter")
+    def test_exited_process_is_skipped_without_losing_other_processes(self, iterator):
+        exited = self.process()
+        exited.as_dict.side_effect = psutil.NoSuchProcess(123)
+        iterator.return_value = [exited, self.process(456)]
+        self.assertEqual([item["pid"] for item in self.monitor._read()], [456])
+
+    @patch("dashboard.time.time", return_value=150)
+    def test_snapshot_is_independent_and_reports_stale_and_stopped_worker(self, clock):
+        self.monitor._data = {"processes": [{"pid": 1}], "updated": 100, "error": None}
+        data = self.monitor.snapshot()
+        self.assertIn("stale", data["error"])
+        data["processes"][0]["pid"] = 2
+        self.assertEqual(self.monitor._data["processes"][0]["pid"], 1)
+        self.monitor._thread.ident = 123
+        self.monitor._thread.is_alive.return_value = False
+        self.assertIn("stopped", self.monitor.snapshot()["error"])
+
+    def test_failure_preserves_last_success_and_retries(self):
+        self.monitor._data = {"processes": [{"pid": 1}], "updated": 100, "error": None}
+        self.monitor._read = Mock(side_effect=[OSError("unavailable"), [{"pid": 2}]])
+        self.monitor._stop = Mock()
+        self.monitor._stop.is_set.side_effect = [False, False, True]
+        self.monitor._run()
+        self.assertEqual(self.monitor._read.call_count, 2)
+        self.assertEqual(self.monitor._data["processes"], [{"pid": 2}])
+        self.assertIsNone(self.monitor._data["error"])
+
+    @patch("dashboard.psutil.process_iter", side_effect=AssertionError("Hardware must not scan processes"))
+    @patch("dashboard.discover_conda_envs", return_value=[])
+    @patch("dashboard.WindowsGpuMonitor")
+    @patch("dashboard.HardwareMonitor")
+    @patch("dashboard.ProcessMonitor")
+    @patch("dashboard.read_gpus", return_value=([], {}, None))
+    def test_hardware_collection_uses_cached_process_details(self, gpus, monitor, hardware, gpu, envs, iterator):
+        gpu.return_value.snapshot.return_value = {}
+        gpu.return_value.error = None
+        hardware.return_value.snapshot.return_value = {"sensors": [], "source": None, "message": "", "updated": None}
+        monitor.return_value.snapshot.return_value = {
+            "processes": [{
+                "pid": 123, "name": "train.py", "environment": "training", "cpu": 10,
+                "memory_mb": 100, "threads": 4, "status": "running", "create_time": 100,
+            }],
+            "updated": 200, "error": "Process details delayed",
+        }
+        monitor.INTERVAL = 10
+        collector = StatsCollector()
+        data = collector.collect()
+        self.assertEqual(data["system"]["process_count"], 1)
+        self.assertEqual(data["processes"][0]["cpu"], 10)
+        self.assertEqual(data["environments"][0]["cpu"], 10)
+        self.assertEqual(data["process_sampling"]["updated"], 200)
+        self.assertEqual(data["process_sampling"]["error"], "Process details delayed")
+        iterator.assert_not_called()
+
+    def test_dead_hardware_sampler_returns_explicit_error(self):
+        service = TelemetryService(Mock(), PowerHistory())
+        service._thread = Mock(ident=123)
+        service._thread.is_alive.return_value = False
+        data, status = service.snapshot()
+        self.assertEqual(status, 503)
+        self.assertIn("sampler stopped", data["error"])
 
 
 def copilot_payload(**quota):
