@@ -281,16 +281,20 @@ class CopilotUsageTests(unittest.TestCase):
 
     @patch("dashboard.read_copilot_usage")
     @patch("dashboard.time.monotonic")
-    def test_cache_enforces_exact_sixty_second_boundary(self, monotonic, read):
+    def test_cache_enforces_exact_thirty_second_boundary(self, monotonic, read):
         monotonic.return_value = 100
         read.return_value = {"used_percent": 25}
         cache = CopilotUsage()
         self.assertEqual(cache.snapshot()[1], 200)
-        monotonic.return_value = 159.999
+        read.return_value = {"used_percent": 50}
+        monotonic.return_value = 129.999
         self.assertEqual(cache.snapshot()[0]["usage"]["used_percent"], 25)
         read.assert_called_once()
-        monotonic.return_value = 160
-        cache.snapshot()
+        monotonic.return_value = 130
+        data, status = cache.snapshot()
+        self.assertEqual(status, 200)
+        self.assertEqual(data["usage"]["used_percent"], 50)
+        self.assertEqual(data["min_interval_seconds"], 30)
         self.assertEqual(read.call_count, 2)
 
     @patch("dashboard.read_copilot_usage")
@@ -300,7 +304,7 @@ class CopilotUsageTests(unittest.TestCase):
         read.return_value = {"used_percent": 25}
         cache = CopilotUsage()
         first, _ = cache.snapshot()
-        monotonic.return_value = 160
+        monotonic.return_value = 130
         read.side_effect = ValueError("GitHub authentication expired")
         failed, status = cache.snapshot()
         self.assertEqual(status, 503)
@@ -308,10 +312,10 @@ class CopilotUsageTests(unittest.TestCase):
         self.assertEqual(failed["usage"], first["usage"])
         self.assertEqual(failed["updated"], first["updated"])
         self.assertIn("authentication", failed["error"])
-        monotonic.return_value = 219.999
+        monotonic.return_value = 159.999
         cache.snapshot()
         self.assertEqual(read.call_count, 2)
-        monotonic.return_value = 220
+        monotonic.return_value = 160
         read.side_effect = None
         read.return_value = {"used_percent": 30}
         recovered, status = cache.snapshot()

@@ -985,7 +985,7 @@ def fetch_copilot_usage(token: str) -> dict[str, Any]:
 
 
 class CopilotUsage:
-    MIN_INTERVAL = 60
+    MIN_INTERVAL = 30
 
     def __init__(self) -> None:
         self.auth = GitHubDeviceAuth()

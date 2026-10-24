@@ -178,9 +178,10 @@ process-level GPU counters.
 
 The **GitHub AI usage** box shows the percentage of your included Copilot
 allowance used, the used/total amounts when reported, and the quota reset.
-Its own refresh selector defaults to **1 minute**, with 2- and 5-minute options.
+Its own refresh selector offers **30s / 1m / 3m / 5m**, defaulting to **30s**.
+Saved intervals remain selected; the former 2-minute option migrates to 3 minutes.
 This polling is independent of the hardware refresh and pause controls.
-The server caches successes and failures for at least 60 seconds across tabs;
+The server caches successes and failures for at least 30 seconds across tabs;
 hardware sampling is never blocked by a GitHub request. Polling stops when no
 dashboard pages are open. Clearing hardware history does not reset GitHub usage.
 

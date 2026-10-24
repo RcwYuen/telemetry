@@ -266,7 +266,7 @@
         <p class="note" title="Not whole-PC power. Energy resets on restart or Clear cache; history is RAM-only.">NVIDIA GPUs only · energy since reset</p>
       </article>
       <article class="panel" data-panel="copilot" style="--accent:var(--cyan)" aria-label="GitHub Copilot usage">
-        <div class="panel-head"><h2><span class="panel-number">07 / </span>GitHub AI usage</h2><select class="control" id="copilot-interval" aria-label="GitHub usage refresh interval" title="Independent of hardware refresh and pause. GitHub reporting may lag."><option value="60000" selected>1 min refresh</option><option value="120000">2 min refresh</option><option value="300000">5 min refresh</option></select></div>
+        <div class="panel-head"><h2><span class="panel-number">07 / </span>GitHub AI usage</h2><select class="control" id="copilot-interval" aria-label="GitHub usage refresh interval" title="Independent of hardware refresh and pause. GitHub reporting may lag."><option value="30000" selected>30s</option><option value="60000">1m</option><option value="180000">3m</option><option value="300000">5m</option></select></div>
         <div class="copilot-body">
         <p class="device" id="copilot-plan">Copilot</p>
         <div class="headline"><span class="value" id="copilot-value">—</span><span class="secondary" id="copilot-unit">used</span></div>
@@ -453,6 +453,7 @@
         const raw=localStorage.getItem(preferencesKey);
         if(raw===null) return;
         const saved=JSON.parse(raw);
+        if(saved?.controls?.["copilot-interval"]==="120000") saved.controls["copilot-interval"]="180000";
         const series=new Set(Object.entries(legends).flatMap(([id,lines])=>lines.map(([key])=>`${id}:${key}`)).concat("thermal-legend:fan"));
         if(!saved||saved.version!==1||!saved.controls
           ||!preferenceControls.every(id=>typeof saved.controls[id]==="string"&&[...$(id).options].some(option=>option.value===saved.controls[id]))
