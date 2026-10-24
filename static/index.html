@@ -22,8 +22,9 @@
     .subtitle { color:var(--muted); margin-top:4px; font-size:10px; overflow-wrap:anywhere; }
     .header-tools { min-width:0; flex:1; }
     .header-tools > .controls { justify-content:flex-end; }
-    .header-status { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:3px 7px; color:var(--muted); font-size:9px; margin-top:4px; }
-    .header-status > span { overflow-wrap:anywhere; }
+    .header-status { display:flex; align-items:center; justify-content:flex-end; gap:7px; color:var(--muted); font-size:9px; line-height:12px; margin-top:4px; min-width:0; overflow-x:auto; scrollbar-width:none; }
+    .header-status::-webkit-scrollbar { display:none; }
+    .header-status > span { flex-shrink:0; white-space:nowrap; }
     .header-status > span + span::before { content:"·"; margin-right:7px; }
     .controls { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
     .status-group { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
@@ -42,6 +43,16 @@
     .chip.warn { color:var(--orange); border-color:#ffb46a55; }
     .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
     .panel { min-width:0; background:linear-gradient(140deg,#111922,#0e141b); border:1px solid var(--line); border-radius:7px; padding:10px; overflow:hidden; }
+    .panel[hidden] { display:none; }
+    .panel[data-panel] > .panel-head { position:relative; padding-right:28px; }
+    .collapse-panel { position:absolute; right:0; top:0; width:24px; min-height:29px; padding:0; background:transparent; border:1px solid var(--line); border-radius:4px; color:var(--muted); cursor:pointer; }
+    .collapse-panel:hover { color:var(--text); border-color:#587083; }
+    #collapsed-panels { display:flex; align-items:center; gap:4px; min-width:0; }
+    #collapsed-panels[hidden] { display:none; }
+    .collapsed-list { display:flex; gap:4px; min-width:0; overflow-x:auto; scrollbar-width:none; }
+    .collapsed-list::-webkit-scrollbar { display:none; }
+    #collapsed-panels button { flex-shrink:0; border:0; border-radius:3px; background:#1c2937; color:var(--muted); font-size:9px; line-height:12px; padding:0 4px; white-space:nowrap; }
+    #collapsed-panels button:hover { color:var(--text); background:#24303b; }
     .panel-head { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:29px; margin-bottom:7px; }
     .panel-title { display:flex; align-items:center; gap:8px; min-width:0; }
     .panel-title h2, .panel-head > .legend, .panel-head > select { flex-shrink:0; }
@@ -135,14 +146,14 @@
         <span id="cache-size" title="Estimated server RAM used by retained telemetry and power history, including Python object overhead. Not total app memory or browser cache.">RAM cache: --</span>
         <button class="control" id="clear-cache" title="Clear chart history and reset session energy; monitoring continues" disabled>Clear cache</button>
       </div>
-      <div class="header-status"><span id="last-update">Connecting…</span><span id="uptime">Monitor up —</span></div>
+      <div class="header-status"><span id="last-update">Connecting…</span><span id="uptime">Monitor up —</span><div id="collapsed-panels" role="group" aria-label="Restore collapsed panels" hidden><div class="collapsed-list" id="collapsed-list"></div><button id="restore-all-panels" title="Restore all panels">All</button></div></div>
       </div>
     </header>
     <div id="settings-status" class="status-error" role="status" aria-live="polite" hidden></div>
     <div id="cache-status" role="status" aria-live="polite" hidden></div>
     <div class="summary warnings" id="warnings" role="status" aria-live="polite"></div>
     <section class="grid" aria-label="Dashboard metrics and workloads">
-      <article class="panel" style="--accent:var(--green)">
+      <article class="panel" data-panel="cpu" style="--accent:var(--green)">
         <div class="panel-head"><div class="panel-title"><h2>01 / CPU</h2><span class="device" id="cpu-name">Detecting…</span></div><div class="legend" id="cpu-legend"></div></div>
         <div class="headline"><span class="value" id="cpu-value">—<small>%</small></span><span class="secondary" id="cpu-clock">— GHz</span></div>
         <canvas id="cpu-chart" aria-label="CPU utilization history" tabindex="0"></canvas>
@@ -150,7 +161,7 @@
         <div class="core-label"><span>THREAD LOAD</span><span id="core-summary">—</span></div>
         <div class="cores" id="cores"></div>
       </article>
-      <article class="panel" style="--accent:var(--cyan)">
+      <article class="panel" data-panel="gpu" style="--accent:var(--cyan)">
         <div class="panel-head"><div class="panel-title"><h2>02 / GPU</h2><span class="device" id="gpu-name">Detecting…</span></div><div class="legend" id="gpu-legend"></div></div>
         <div class="headline"><span class="value" id="gpu-value">—<small>%</small></span><span class="secondary" id="gpu-state">—</span></div>
         <canvas id="gpu-chart" aria-label="GPU core and VRAM allocation history" tabindex="0"></canvas>
@@ -158,14 +169,14 @@
         <div class="allocation"><div class="chart-label"><span id="vram-detail">VRAM —</span><span id="vram-free">— free</span></div><div class="track"><i id="vram-meter" style="--tone:var(--orange)"></i></div></div>
         <p class="note" id="gpu-note" hidden></p>
       </article>
-      <article class="panel" style="--accent:var(--blue)">
+      <article class="panel" data-panel="memory" style="--accent:var(--blue)">
         <div class="panel-head"><h2>03 / Memory</h2><div class="legend" id="memory-legend"></div></div>
         <div class="headline"><span class="value" id="memory-value">—<small> GiB</small></span><span class="secondary" id="memory-total">/ — GiB</span></div>
         <canvas id="memory-chart" aria-label="Physical RAM and swap usage history" tabindex="0"></canvas>
         <dl class="stats" id="memory-stats"></dl>
         <div class="allocation"><div class="chart-label"><span>RAM USED</span><span id="memory-percent">—%</span></div><div class="track"><i id="memory-meter"></i></div></div>
       </article>
-      <article class="panel">
+      <article class="panel" data-panel="io">
         <div class="panel-head"><h2>04 / Disk &amp; network</h2></div>
         <div class="twins">
           <div><div class="chart-label"><span>DISK · MiB/s</span></div><div class="legend" id="disk-legend"></div><canvas id="disk-chart" aria-label="Disk read and write throughput history" tabindex="0"></canvas></div>
@@ -175,7 +186,7 @@
         <div id="interfaces"></div>
         <div class="volumes" id="volumes"></div>
       </article>
-      <article class="panel">
+      <article class="panel" data-panel="thermal">
         <div class="panel-head"><h2>05 / Temperature &amp; fans</h2><select class="control" id="thermal-mode" aria-label="Cooling chart metric"><option value="temperature">Temperature °C</option><option value="fan">GPU fan %</option></select></div>
         <div class="legend" id="thermal-legend"></div>
         <canvas id="thermal-chart" aria-label="CPU and selected GPU temperature history in Celsius" tabindex="0"></canvas>
@@ -183,14 +194,14 @@
         <div class="sensor-list" id="sensors"></div>
         <details class="note"><summary id="sensor-summary">Checking sensors…</summary><p id="sensor-note"></p></details>
       </article>
-      <article class="panel">
+      <article class="panel" data-panel="power">
         <div class="panel-head"><h2>06 / Power &amp; energy</h2><select class="control" id="power-mode" aria-label="Power chart metric"><option value="watts">GPU watts</option><option value="energy_wh">Session Wh</option></select></div>
         <div class="headline"><span class="value" id="gpu-power-value">—<small> W</small></span><span class="secondary" id="gpu-energy-value">— Wh</span></div>
         <div class="energy-chart"><canvas id="power-chart" aria-label="GPU power or cumulative energy history" tabindex="0"></canvas></div>
         <dl class="stats" id="power-stats"></dl>
         <p class="note" title="Not whole-PC power. Energy resets on restart or Clear cache; history is RAM-only.">NVIDIA GPUs only · energy since reset</p>
       </article>
-      <article class="panel" style="--accent:var(--cyan)" aria-label="GitHub Copilot usage">
+      <article class="panel" data-panel="copilot" style="--accent:var(--cyan)" aria-label="GitHub Copilot usage">
         <div class="panel-head"><h2>07 / GitHub AI usage</h2><select class="control" id="copilot-interval" aria-label="GitHub usage refresh interval" title="Independent of hardware refresh and pause. GitHub reporting may lag."><option value="60000" selected>1 min refresh</option><option value="120000">2 min refresh</option><option value="300000">5 min refresh</option></select></div>
         <p class="device" id="copilot-plan">Copilot</p>
         <div class="headline"><span class="value" id="copilot-value">—</span><span class="secondary" id="copilot-unit">used</span></div>
@@ -222,12 +233,12 @@
         <p class="note" id="github-tab-status" role="status" hidden></p>
         <a class="note" href="https://github.com/settings/copilot" target="_blank" rel="noopener noreferrer" title="View usage on GitHub">GitHub</a>
       </article>
-      <article class="panel workload-panel" aria-label="Conda environments">
+      <article class="panel workload-panel" data-panel="environments" aria-label="Conda environments">
         <div class="panel-head"><h2>08 / Conda environments</h2><button class="control" id="clear-env">All environments</button></div>
         <div class="scroll"><table><thead><tr><th>Environment</th><th title="Share of total CPU capacity">CPU</th><th title="Summed GPU engines; can exceed 100%">GPU Σ</th><th>RAM</th><th>VRAM</th><th>PIDs</th></tr></thead><tbody id="env-table"></tbody></table></div>
         <p class="note">Click to filter processes</p>
       </article>
-      <article class="panel workload-panel" aria-label="Workload processes">
+      <article class="panel workload-panel" data-panel="processes" aria-label="Workload processes">
         <div class="panel-head"><h2>09 / Workload processes <span class="muted" id="process-count"></span></h2><div class="table-tools"><label class="top-n" for="top-n">Top N <input class="control" id="top-n" type="number" min="1" step="1" value="50" required aria-describedby="process-limit-error"></label><select class="control" id="scope" aria-label="Process scope"><option value="all">All processes</option><option value="conda">Conda only</option></select><input class="control" id="search" aria-label="Search processes" placeholder="Name / PID / env"></div></div>
         <p id="process-limit-error" class="note status-error" role="status" hidden>Enter a positive whole number.</p>
         <div class="scroll"><table><thead><tr><th>Process / PID</th><th>Environment</th><th><button data-sort="cpu">CPU ↕</button></th><th><button data-sort="gpu_utilization">GPU Σ ↕</button></th><th><button data-sort="memory_mb">RAM ↕</button></th><th><button data-sort="gpu_memory">VRAM ↕</button></th><th>Threads</th><th>Age</th></tr></thead><tbody id="process-table"></tbody></table></div>
@@ -253,6 +264,58 @@
     let preferredGpu = null;
     const preferenceControls = ["window","interval","power-mode","thermal-mode","scope","copilot-interval"];
     const preferencesKey = "telemetry.preferences";
+    const panels = [...document.querySelectorAll(".grid > [data-panel]")];
+    const collapsedPanels = new Set();
+    for(const panel of panels) {
+      const name=panel.querySelector("h2").textContent.replace(/^\d+\s*\/\s*/,"").trim();
+      panel.dataset.panelName=name;
+      const button=document.createElement("button");
+      button.className="collapse-panel";
+      button.type="button";
+      button.textContent="−";
+      button.title=`Collapse ${name}`;
+      button.setAttribute("aria-label",button.title);
+      button.addEventListener("click",()=>{
+        collapsedPanels.add(panel.dataset.panel);
+        updateCollapsedPanels();
+        savePreferences();
+        $("collapsed-list").querySelector(`[data-restore-panel="${panel.dataset.panel}"]`).focus({preventScroll:true});
+      });
+      panel.querySelector(".panel-head").append(button);
+    }
+    function updateCollapsedPanels() {
+      const list=$("collapsed-list");
+      list.replaceChildren();
+      for(const panel of panels) {
+        const key=panel.dataset.panel;
+        panel.hidden=collapsedPanels.has(key);
+        if(!panel.hidden) continue;
+        const button=document.createElement("button");
+        button.type="button";
+        button.dataset.restorePanel=key;
+        button.textContent=panel.dataset.panelName;
+        button.title=`Restore ${panel.dataset.panelName}`;
+        button.setAttribute("aria-label",button.title);
+        button.addEventListener("click",()=>{
+          collapsedPanels.delete(key);
+          updateCollapsedPanels();
+          savePreferences();
+          panel.querySelector(".collapse-panel").focus({preventScroll:true});
+        });
+        list.append(button);
+      }
+      $("collapsed-panels").hidden=collapsedPanels.size===0;
+      $("tooltip").hidden=true;
+      closeProcessMenu();
+      drawCharts();
+    }
+    $("restore-all-panels").addEventListener("click",()=>{
+      const first=panels.find(panel=>collapsedPanels.has(panel.dataset.panel));
+      collapsedPanels.clear();
+      updateCollapsedPanels();
+      savePreferences();
+      first?.querySelector(".collapse-panel").focus({preventScroll:true});
+    });
     const fmt = (value, digits = 1) => value != null && Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
     const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
     const gib = mb => mb == null ? "—" : `${fmt(mb / 1024,2)} GiB`;
@@ -288,7 +351,8 @@
           ||!Number.isSafeInteger(saved.topN)||saved.topN<1
           ||!["cpu","gpu_utilization","memory_mb","gpu_memory"].includes(saved.sort)
           ||typeof saved.descending!=="boolean"
-          ||!Array.isArray(saved.hiddenSeries)||!saved.hiddenSeries.every(key=>series.has(key))) {
+          ||!Array.isArray(saved.hiddenSeries)||!saved.hiddenSeries.every(key=>series.has(key))
+          ||saved.collapsedPanels!==undefined&&(!Array.isArray(saved.collapsedPanels)||!saved.collapsedPanels.every(key=>panels.some(panel=>panel.dataset.panel===key)))) {
           throw new TypeError("Invalid saved dashboard settings");
         }
         for(const id of preferenceControls) $(id).value=saved.controls[id];
@@ -296,6 +360,7 @@
         topN=saved.topN; $("top-n").value=String(topN);
         sort=saved.sort; descending=saved.descending;
         for(const key of saved.hiddenSeries) hidden.add(key);
+        for(const key of saved.collapsedPanels||[]) collapsedPanels.add(key);
       } catch(error) {
         if(!(error instanceof SyntaxError)&&!(error instanceof TypeError)&&!(error instanceof DOMException)) throw error;
         settingsError("Settings could not be loaded; using defaults.");
@@ -305,7 +370,8 @@
       try {
         localStorage.setItem(preferencesKey,JSON.stringify({
           version:1, controls:Object.fromEntries(preferenceControls.map(id=>[id,$(id).value])),
-          gpuIndex:preferredGpu, topN, sort, descending, hiddenSeries:[...hidden]
+          gpuIndex:preferredGpu, topN, sort, descending, hiddenSeries:[...hidden],
+          collapsedPanels:[...collapsedPanels]
         }));
         $("settings-status").hidden=true;
       } catch(error) {
@@ -314,6 +380,7 @@
       }
     }
     loadPreferences();
+    updateCollapsedPanels();
     Object.entries(legends).forEach(([id,lines])=>legend(id,id==="thermal-legend"&&$("thermal-mode").value==="fan"?[["fan","GPU fan duty"]]:lines));
     document.addEventListener("click", event => {
       const button = event.target.closest("[data-series]");
@@ -521,8 +588,10 @@
       $("cache-size").title=`Estimated server history memory including Python object overhead: ${bytes} bytes; ${cache.samples} telemetry and ${cache.power_samples} power samples. Not total app memory or browser cache.`;
       $("clear-cache").disabled=false;
     }
+    let cacheStatusTimer;
     $("clear-cache").addEventListener("click",async()=>{
       if(busy) return;
+      clearTimeout(cacheStatusTimer);
       busy=true; $("clear-cache").disabled=true;
       const status=$("cache-status");
       status.hidden=false; status.classList.remove("status-error"); status.textContent="Clearing RAM cache...";
@@ -534,6 +603,7 @@
         $("tooltip").hidden=true;
         updateCache(data.cache);
         status.textContent="Cache cleared · energy reset";
+        cacheStatusTimer=setTimeout(()=>{status.hidden=true;},5000);
       } catch(error) {
         status.classList.add("status-error"); status.textContent=`Could not clear RAM cache: ${error.message}`;
       } finally {busy=false;$("clear-cache").disabled=false;}

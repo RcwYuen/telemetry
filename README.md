@@ -5,6 +5,13 @@ power, clocks, Conda environment activity, and training processes.
 The nine panels share a compact **3 x 3 desktop grid**, including GitHub AI usage
 and both workload tables. Smaller windows switch to two columns, then one;
 workload tables scroll within their panels rather than adding a separate row.
+Use the minus button in any panel header to collapse it. Compact restore buttons
+appear beside **Updated** in the existing top status line; **All** restores every
+panel. They scroll horizontally when space is limited, without adding a grid box
+or another header row. Four collapsed panels leave five visible grid panels.
+Restore controls disappear when all panels are restored.
+Collapsed panels keep collecting and updating data; their visibility is saved
+with your browser display settings.
 Panel text is kept brief; hover hints and expandable setup/sensor details hold
 extra explanations. Missing readings, warnings, and errors remain visible.
 Process count and system uptime sit beside LIVE. CPU/GPU model names share the
@@ -14,7 +21,7 @@ Last update and monitor uptime share a compact line beneath the top controls.
 
 Display settings save automatically in this browser: GPU selection, refresh
 intervals, chart window and modes, legend visibility, process scope, sorting, and
-Top N. They restore after reload or restart when using the same browser profile,
+Top N, and collapsed panels. They restore after reload or restart when using the same browser profile,
 hostname, and port. Search, environment filters, manual pins, pause state, and
 login tokens are not saved. If browser storage is unavailable or saved settings
 are invalid, the dashboard shows a warning and remains usable.
