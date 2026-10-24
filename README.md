@@ -1,352 +1,80 @@
 # Telemetry
 
-A local, live dashboard for CPU and NVIDIA GPU utilization, thermals, memory,
-power, clocks, Conda environment activity, and training processes.
-The nine panels share a compact **3 x 3 desktop grid**, including GitHub AI usage
-and both workload tables. Smaller windows switch to two columns, then one;
-workload tables scroll within their panels rather than adding a separate row.
-Turn on **Simplify:** for a compact chart strip, up to 960 pixels wide, below
-the unchanged header. The top bar keeps the same contents, sizing, and button
-positions in both modes, including when the page scrollbar disappears.
-Each hardware category sits beside a single-line history chart, followed by a
-GitHub AI usage row with its percentage, usage bar, and independent refresh
-interval. Current readings sit at the far right of every row: CPU, GPU, VRAM,
-RAM, and swap percentages, plus throughput, temperatures/fan duty, power/energy,
-and GitHub usage in their appropriate units. Charts are 36 pixels tall for more
-visible fluctuations. Chart axes, detailed summaries, per-thread loads, sensor lists, and
-both workload tables are omitted. Hover charts for exact readings and the
-GitHub percentage for its allowance, units, and reset date. Legends, chart modes,
-GitHub sign-in, and error indicators remain available; GitHub setup opens in a
-small overlay rather than stretching the dashboard. The chart strip targets at
-most a quarter of the full panel grid's area without scrolling on desktop windows.
-Switch it off to restore the full dashboard and its collapsed-panel settings;
-data collection continues in either mode.
-Use the minus button in any panel header to collapse it. Compact restore buttons
-appear beside **Updated** in the existing top status line; **All** restores every
-panel. They scroll horizontally when space is limited, without adding a grid box
-or another header row. Four collapsed panels leave five visible grid panels.
-Restore controls disappear when all panels are restored.
-Collapsed panels keep collecting and updating data; their visibility is saved
-with your browser display settings.
-Panel text is kept brief; hover hints and expandable setup/sensor details hold
-extra explanations. Missing readings, warnings, and errors remain visible.
-Process count and system uptime sit beside LIVE. CPU/GPU model names share the
-panel headers (hover for the full name), and the GPU selector identifies each
-device by name and index.
-Last update and monitor uptime share a compact line beneath the top controls.
+Telemetry is a local dashboard for live CPU, memory, NVIDIA GPU, disk, network,
+and running-process activity. It runs on your computer and serves the dashboard
+at `http://127.0.0.1:6767`.
 
-Display settings save automatically in this browser: GPU selection, refresh
-intervals, chart window and modes, legend visibility, process scope, sorting, and
-Top N, collapsed panels, and Simplify mode. They restore after reload or restart when using the same browser profile,
-hostname, and port. Search, environment filters, manual pins, pause state, and
-login tokens are not saved. If browser storage is unavailable or saved settings
-are invalid, the dashboard shows a warning and remains usable.
+## Quick start
 
-## Run
+Install Python, then run these commands from the project folder:
 
 ```powershell
 python -m pip install -r requirements.txt
 python dashboard.py
 ```
 
-Open [http://127.0.0.1:6767](http://127.0.0.1:6767). The server only binds to
-localhost by default. Use `python dashboard.py --port 9000` to choose another
-port. Stop it with Ctrl+C.
-Only one dashboard instance can listen on a given port; duplicate launches fail
-explicitly instead of serving competing telemetry.
+Open [http://127.0.0.1:6767](http://127.0.0.1:6767) in your browser. Press
+**Ctrl+C** in the terminal to stop the dashboard.
 
-### Windows app launcher and desktop shortcut
+The server listens on localhost by default. To use another port, run
+`python dashboard.py --port 9000`, then open `http://127.0.0.1:9000`.
 
-Double-click **`Telemetry.exe`** to launch the app without a console window.
-It is a small Windows GUI executable with a custom multi-resolution icon that
-runs `launch-dashboard.ps1` and forwards any command-line options to it. It uses
-the existing `telemetry` environment; it does not bundle Python or duplicate the
-dashboard. Keep the executable beside the script and the rest of this project.
-The icon is also used by the desktop shortcut and dashboard favicon.
+## Windows app window (optional)
 
-The executable is locally built and unsigned, not an installer. To rebuild it
-and regenerate the 16/32/48/64/128/256-pixel icon using Windows' built-in .NET
-Framework compiler (no extra build packages required):
+The Windows launcher opens the dashboard in an app-style browser window. It
+requires an existing Conda environment named `telemetry` with the project
+dependencies installed.
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build-app.ps1
-```
+1. Build the launcher once:
 
-Source is in `app/Launcher.cs`; icon artwork is generated by `build-app.ps1`.
+   ```powershell
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build-app.ps1
+   ```
 
-Double-click `launch-dashboard.cmd`. It activates the existing `telemetry` Conda
-environment, starts a fresh dashboard on port 6767 (replacing this project's previous session),
-waits for telemetry to become ready, then opens your default browser in app mode.
-Microsoft Edge, Chrome, and Brave support this mode: no tabs, address bar, or
-browser toolbar, but the normal Windows title bar/window controls remain.
-The launcher does not create an environment or install missing dependencies.
+2. Double-click `launch-dashboard.cmd`.
 
-To create a desktop shortcut that launches without a console window:
+Close the app window to stop monitoring. To stop it from a terminal, run
+`.\launch-dashboard.cmd -Stop`.
 
-```powershell
-.\launch-dashboard.cmd -CreateDesktopShortcut
-```
+## What it shows
 
-The shortcut is named **Telemetry** and points back to this project.
-Run that command again to refresh an existing shortcut with the new app icon.
-Keep the project in place, or recreate the shortcut after moving it.
+- Live hardware readings and history charts.
+- Running processes, their resource use, and Conda environment.
+- NVIDIA GPU details when `nvidia-smi` is installed and available.
+- Optional GitHub Copilot usage.
 
-Options work with either the `.cmd` launcher or the PowerShell script:
+Use the dashboard controls to pause updates, change chart history, simplify the
+layout, or clear chart history. Telemetry history is kept in memory and resets
+when the server restarts. Display preferences are saved in the browser.
 
-```powershell
-.\launch-dashboard.cmd -EnvironmentName telemetry -Port 6767
-.\launch-dashboard.cmd -CondaExe "C:\ProgramData\anaconda3\Scripts\conda.exe"
-.\launch-dashboard.cmd -BrowserPath "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-.\launch-dashboard.cmd -NoBrowser
-```
+## GitHub Copilot usage (optional)
 
-If your default browser does not support Chromium app mode, specify a supported
-browser explicitly with `-BrowserPath`; the launcher does not silently switch
-browsers. Errors appear in the console and, for app launches, in a message box.
-Server logs are in `data/dashboard.stdout.log` and `data/dashboard.stderr.log`.
-Launcher diagnostics are in `data/dashboard.launcher.log`; native supervisor
-errors are recorded in `data/dashboard.supervisor.log`.
-Closing the app browser window stops monitoring and terminates all processes
-spawned by that dashboard session, including remaining sensor subprocesses and
-browser helpers. The EXE supervises the session with a Windows Job Object;
-even forcibly terminating the supervising EXE cleans up its descendants.
-The CMD and direct PowerShell entry points route through the same supervisor.
+To view Copilot usage, expand **Sign-in setup** in the dashboard. Create a
+[GitHub OAuth app](https://github.com/settings/applications/new), enable
+**Device Flow**, set its homepage and callback URL to
+`http://127.0.0.1:6767`, then enter its public **Client ID**. If you chose a
+different port, use that dashboard address instead. Do not enter a client
+secret or access token. Sign in through GitHub and approve the app.
 
-Each launch replaces this project's previous session and starts with empty
-RAM history and zero cumulative energy. Only one managed session per project
-folder runs at a time, even if a different port is requested. Old standalone
-servers running this project's exact `dashboard.py` path and their still-identifiable
-descendants are also stopped on launch. Unrelated browser windows, training jobs,
-and other processes using the `telemetry` Conda environment are **not** killed.
-An unrelated application occupying the requested port is never terminated.
+The app requests the `read:user` scope and sends usage requests to GitHub. The
+sign-in token stays in server memory; usage availability depends on GitHub and
+your Copilot account. Usage refreshes every 30 seconds by default. The app also
+supports existing `COPILOT_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN` environment
+variables and GitHub CLI sign-in.
 
-The app uses a separate Chromium profile in `data/app-browser-profile`, keeping
-its process lifetime independent of your normal browser. Browser settings may
-persist there; telemetry history and manual process pins remain memory-only.
-Do not use that profile for unrelated browsing: all of its windows belong to the
-dashboard session.
+## Privacy and data
 
-To stop the app explicitly (also works for `-NoBrowser`):
+Telemetry is collected from your computer and served locally by default. The
+dashboard may show process names and IDs, hardware details, and resource usage.
+It does not save telemetry history or sign-in tokens to disk. Browser display
+preferences and the app's browser profile may persist locally.
 
-```powershell
-.\launch-dashboard.cmd -Stop
-# Or:
-& ".\Telemetry.exe" -Stop
-```
+## Troubleshooting
 
-`-NoBrowser` intentionally runs headless until stopped or replaced; the supervisor
-stays running. The PID file is informational, not used to blindly kill a PID.
-Previously orphaned helpers whose ownership can no longer be verified are not
-killed by name or environment. Job Object ownership prevents new session helpers
-from becoming such orphans.
-
-Windows lifecycle integration tests (these replace and stop the current dashboard
-session, briefly opening and closing a dedicated app window):
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\test-launcher.ps1
-```
-
-The dashboard polls every two seconds by default; the interval and pause
-controls are in the header. Process details refresh separately on a ten-second
-target interval, so large process lists do not block hardware sampling. Workload
-panels show a warning while process details warm up or become stale.
-Requests time out after ten seconds and retry on the next poll. **DELAYED** means
-the latest hardware sample is over ten seconds old; **OFFLINE** indicates a
-request or sampling error. Returning to the tab triggers a refresh unless paused.
-Browser background throttling can slow display refreshes, but does not stop the
-Python sampler. System sleep still suspends monitoring.
-NVIDIA metrics require `nvidia-smi` on `PATH`.
-The header also shows **RAM cache**, an estimate of server memory occupied by
-retained telemetry and power history, including Python object overhead (not total
-app memory, browser disk cache, or the operating system cache). It updates with
-each display refresh. **Clear cache** immediately empties both chart histories
-and resets cumulative GPU energy and measured time, even while the display is
-paused. Monitoring continues and new samples refill the cache. Browser settings,
-process pins, and display preferences are unchanged. Clearing history does not
-guarantee that Python returns the freed memory to the operating system.
-Conda attribution uses the executable path of each running process. CPU
-temperature is shown only when exposed by the operating system. GPU memory per
-process is available for NVIDIA compute processes reported by
-`nvidia-smi`. On Windows, per-process GPU engine counters also estimate GPU
-utilization and dedicated memory for Conda processes. GPU utilization per
-environment is an estimate, sums usage across engines and processes, and can
-exceed 100%. These counters can be unavailable when the OS does not expose
-process-level GPU counters.
-
-## GitHub Copilot AI usage
-
-The **GitHub AI usage** box shows the percentage of your included Copilot
-allowance used, the used/total amounts when reported, and the quota reset.
-Its own refresh selector offers **30s / 1m / 3m / 5m**, defaulting to **30s**.
-Saved intervals remain selected; the former 2-minute option migrates to 3 minutes.
-This polling is independent of the hardware refresh and pause controls.
-The server caches successes and failures for at least 30 seconds across tabs;
-hardware sampling is never blocked by a GitHub request. Polling stops when no
-dashboard pages are open. Clearing hardware history does not reset GitHub usage.
-
-### Sign in without additional software
-
-The box has **Sign in with GitHub**, implemented using Python's standard library
-and GitHub's OAuth device flow. No GitHub CLI, extra package, client secret, or
-local callback listener is required. GitHub requires a registered OAuth app:
-
-1. Expand **Sign-in setup** in the box and follow the registration
-   link, or open <https://github.com/settings/applications/new>.
-2. Name the app **Telemetry**. Set both Homepage URL and Authorization callback
-   URL to `http://127.0.0.1:6767` (adjust for a custom port). The callback is
-   required by registration but is not used by device flow.
-3. Enable **Device Flow** in the OAuth app's settings.
-4. Paste its public **Client ID** into the box, then click **Sign in with GitHub**.
-   Do not generate or enter a client secret or personal access token.
-5. Open the displayed GitHub device sign-in link, enter the one-time code, and
-   approve the app you registered using your Copilot account. The dashboard
-   detects approval automatically, attempts to close the sign-in tab it opened,
-   and checks your usage. Canceling sign-in also closes that tracked tab.
-
-Use a normal click on the dashboard's device sign-in link for automatic closing.
-Manually opened tabs, modified clicks, page reloads, pop-up blocking, or GitHub's
-cross-origin browser policies can prevent automatic closing. In that case close
-the GitHub tab yourself; authorization and usage polling still work. Only the
-sign-in tab opened by this dashboard page is tracked; other tabs are untouched.
-Once authorized, setup instructions and redundant sign-in status disappear.
-Successful usage keeps only the percentage, counts, reset, timestamp, and controls;
-errors and stale-data warnings remain visible.
-
-The app requests only the `read:user` OAuth scope, not repository access.
-Only the public Client ID is saved in your browser's settings. Device codes and
-access tokens stay in server memory, are sent only to GitHub, and are never
-included in browser responses or saved to disk. A page refresh keeps the current
-sign-in; a server restart requires signing in again. **Cancel sign-in** stops a
-pending authorization; **Disconnect** discards the server's session token and
-cached account usage. To revoke the OAuth grant itself, use
-<https://github.com/settings/applications>. Only sign in from a localhost URL;
-remote hosts and cross-origin sign-in requests are rejected.
-
-GitHub approval and Copilot quota access are separate: GitHub's internal quota
-endpoint may reject tokens from independently registered apps. If authorization
-succeeds but usage is denied, the box shows the actual quota-access error rather
-than claiming that usage is available. Live access must be verified with your app.
-
-Existing environment tokens (`COPILOT_TOKEN`, then `GH_TOKEN`, then `GITHUB_TOKEN`)
-and an already-installed GitHub CLI remain optional fallback sources when there
-is no browser-authorized session token. Tokens must be accepted by the quota
-endpoint; not all personal access tokens have access. Disconnect does not remove
-environment or CLI credentials. Do not put secrets in source files or browser
-inputs. Restart the app after changing its environment.
-
-This uses GitHub's **internal** `https://api.github.com/copilot_internal/user`
-endpoint, which may change or reject a token even if other GitHub APIs work.
-It reads the premium-interaction quota, using GitHub's billing flag to label
-usage as **AI credits** or legacy **premium requests**, never converting
-requests into credits. The percentage is `100 - percent_remaining`; absolute
-usage is derived from the matching allowance and remaining quota when available.
-Uncapped organization accounts have no meaningful percentage; their reported
-consumed credits are shown instead, without inventing an allowance.
-Missing or unsupported quotas, authentication failures, and request errors are
-shown in the box. On failure, the last successful values are explicitly marked
-**STALE** with their timestamp. GitHub's own usage reporting can be delayed;
-this is not a per-request billing ledger.
-
-## Power, energy, and history
-
-The power section shows measured **NVIDIA GPU board power**, summed across all
-reported NVIDIA devices, and cumulative **GPU energy** in Wh and kWh. These are
-not whole-computer readings: CPU, RAM, storage, fans, motherboard and PSU losses
-are not included. Whole-computer power and energy are unavailable without an
-external meter or an appropriate whole-system sensor.
-
-The Python server targets a sample every two seconds independently of browser polling
-(hardware queries can take longer under load),
-so pausing or refreshing the page does not stop energy monitoring. Closing the
-managed app window stops the server; a manually started `python dashboard.py`
-server instead runs until Ctrl+C. Energy is
-calculated using trapezoidal integration of watts over elapsed time. Intervals
-with missing readings, gaps longer than ten seconds, and server downtime are
-not counted. The measured-hours indicator describes the intervals actually
-included; this is sampled energy, not a billing-grade meter.
-
-Power readings are kept **only in RAM**, using the same rolling 300-sample
-retention as the other telemetry (roughly ten minutes at the target sampling
-rate). Each new sample evicts the oldest one when the buffer is full. Nothing
-is written to a power-history database or restored from disk.
-
-Cumulative GPU energy and measured time cover the **current server run since
-the most recent cache clear**.
-They accumulate even as older chart samples are discarded, and
-reset to zero when the server restarts or **Clear cache** is used. Refreshing the browser does not reset
-them; closing the managed app ends the session. The old persistent database
-and `--power-db` option are no longer used.
-
-CPU, GPU/VRAM, and RAM/swap utilization charts show load and memory allocation as
-percentages, with the latest memory quantities in the overview tiles.
-
-## Compact performance console
-
-The console groups hardware into six compact panels:
-
-- CPU model, frequency, load history, per-logical-thread heatmap, context switches,
-  interrupts, process/thread counts, and available CPU temperature.
-- Selectable NVIDIA GPU, core/VRAM history, memory-controller utilization, core
-  and memory clocks, performance state, PCIe link, encode/decode load, power,
-  temperature, and fan duty percentage.
-- RAM allocation and available memory, OS cache where exposed, and swap history.
-- Disk read/write throughput and IOPS, network throughput and active interfaces,
-  cumulative network bytes/errors/drops, and mounted-volume capacity bars.
-- Switchable temperature / GPU fan-duty history and optional hardware temperature,
-  fan RPM, and power sensors.
-- GPU watts/session-energy history with RAM-only rolling retention.
-
-Choose a 1-, 5-, or 10-minute history window. Utilization and I/O samples are
-buffered in server memory (up to 300 samples) and survive page reloads, but not
-server restarts. Power history follows the same RAM-only retention. Hover charts for exact
-values and click chart legends to toggle individual series. Device details are
-inside their corresponding panels. Memory quantities are binary GiB.
-
-Click a Conda environment to filter the process table. The table also supports
-Conda-only scope, name/PID/environment search, and CPU/GPU/RAM/VRAM sorting.
-The **Top N** number box sets how many matching workload processes are rendered
-(default 50); searches and filters still operate over all observable processes.
-All processes in the `telemetry` environment are pinned first, in addition to
-those N workloads, without consuming the limit or appearing twice. Pinned
-processes remain visible even when search, scope, or environment filters exclude
-them. The counter separates workload, telemetry, and manually pinned rows. The limit
-must be a positive whole number; invalid entries show an error and retain the
-last valid limit.
-
-Right-click any workload row and choose **Pin process** to keep it above the
-top-N list and visible regardless of search, scope, or environment filters.
-Right-click it again to **Unpin process**. Keyboard users can focus a row and
-press Shift+F10 or the Menu key, then Enter; Escape closes the menu. Telemetry
-processes are automatically pinned and cannot be manually unpinned.
-
-Manual pins are kept only in the current page's memory, not on disk. They clear
-on page reload or when the process disappears from telemetry. Pins identify a
-process by both PID and OS creation time, so a recycled PID cannot accidentally
-pin an unrelated new process. If creation time is unavailable, the menu explains
-why pinning is disabled.
-
-Thread counts and process ages help distinguish workers and long-running jobs.
-Hardware statistics do not automatically include model loss, epochs, or accuracy.
-
-### Fan RPM and CPU temperatures on Windows
-
-NVIDIA reports GPU **fan duty in percent**, not RPM. Zero is a valid reading
-(many cards stop their fans at low temperatures). The app never substitutes
-percentage for RPM or invents readings.
-
-Windows usually does not expose CPU/chassis sensors to psutil. Optionally run
-**LibreHardwareMonitor** or **OpenHardwareMonitor** as administrator on the same
-computer; the dashboard polls its WMI sensor namespace every ten seconds.
-Depending on hardware and driver support, this can expose CPU package
-temperature, motherboard/chassis fan RPM, and component power. The dashboard
-does not need administrator privileges itself unless sensor access requires it.
-No additional Python package is needed. Missing sensors remain unavailable, with
-an explanation in the cooling panel. CPU package readings are used only when
-identified as CPU package/Tctl/Tdie sensors.
-
-Run focused collector and energy-accounting tests with:
-
-```powershell
-python -m unittest -v test_dashboard test_github_auth
-```
+- If the page does not open, check the terminal for errors and confirm the
+  dashboard is running on the displayed port.
+- NVIDIA readings require `nvidia-smi` on `PATH`; other hardware readings remain
+  available without it.
+- Some Windows temperature and fan sensors require
+  [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
+  or OpenHardwareMonitor running as administrator.
